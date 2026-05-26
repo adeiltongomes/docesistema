@@ -176,6 +176,18 @@ tbody td{padding:11px 13px;color:var(--txt)}
 .anexo-name{flex:1;font-size:12px;color:var(--txt2);word-break:break-all;min-width:0}
 .anexo-clip{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--cara);margin-left:5px;vertical-align:middle;cursor:default}
 .orc-st-sel{border:none;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;font-family:inherit}
+.rec-card{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--cream2);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .15s}
+.rec-card:hover{box-shadow:var(--shm)}
+.rec-foto{height:130px;background:var(--cream2) center/cover no-repeat}
+.rec-foto-empty{display:flex;align-items:center;justify-content:center;background:var(--cream)}
+.rec-body{padding:14px;flex:1;display:flex;flex-direction:column;gap:0}
+.rec-nome{font-family:'Palatino Linotype',Palatino,serif;font-size:15px;color:var(--choc);font-weight:600;margin-bottom:2px}
+.rec-cat{font-size:11px;color:var(--txt3)}
+.rec-meta{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;font-size:11px;color:var(--txt3)}
+.rec-meta span{display:inline-flex;align-items:center;gap:3px}
+.rec-ing-preview{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.rec-ing-preview span{background:var(--cream);border-radius:20px;padding:2px 8px;font-size:11px;color:var(--txt2)}
+.rec-actions{display:flex;gap:6px;align-items:center;margin-top:auto;padding-top:10px;border-top:1px solid var(--cream2)}
 .orc-st-pendente{background:#FFF3E0;color:#B05000}
 .orc-st-aprovado{background:#E8F4EE;color:#2E7D52}
 .orc-st-recusado{background:#FCEAEA;color:#B84040}
@@ -230,6 +242,10 @@ tbody td{padding:11px 13px;color:var(--txt)}
     <div class="ni" data-page="relatorios" onclick="navigate('relatorios')">
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Relatórios
+    </div>
+    <div class="ni" data-page="receitas" onclick="navigate('receitas')">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-7 17.29V21a1 1 0 001 1h12a1 1 0 001-1v-1.71A10 10 0 0012 2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 14c0-1.66 1.34-3 3-3s3 1.34 3 3M12 11V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Receitas
     </div>
     <div class="snav-lbl">Configurações</div>
     <div class="ni" data-page="empresa" onclick="navigate('empresa')">
@@ -292,6 +308,7 @@ tbody td{padding:11px 13px;color:var(--txt)}
     <div class="page" id="page-financeiro"></div>
     <div class="page" id="page-os"></div>
     <div class="page" id="page-relatorios"></div>
+    <div class="page" id="page-receitas"></div>
     <div class="page" id="page-empresa"></div>
   </div>
 </main>
@@ -309,8 +326,8 @@ tbody td{padding:11px 13px;color:var(--txt)}
 
 <script>
 // ===== CONSTANTS =====
-const S={CLIENTES:'ds_cli',PRODUTOS:'ds_prod',VENDAS:'ds_vnd',ORCAMENTOS:'ds_orc',COMPRAS:'ds_cmp',TRANS:'ds_trn',OS:'ds_os',EMPRESA:'ds_emp'}
-const PTITLES={dashboard:'Dashboard',vendas:'Vendas',orcamentos:'Orçamentos',clientes:'Clientes',estoque:'Estoque',compras:'Compras',financeiro:'Financeiro',os:'Ordens de Serviço',relatorios:'Relatórios',empresa:'Minha Empresa'}
+const S={CLIENTES:'ds_cli',PRODUTOS:'ds_prod',VENDAS:'ds_vnd',ORCAMENTOS:'ds_orc',COMPRAS:'ds_cmp',TRANS:'ds_trn',OS:'ds_os',EMPRESA:'ds_emp',RECEITAS:'ds_rec'}
+const PTITLES={dashboard:'Dashboard',vendas:'Vendas',orcamentos:'Orçamentos',clientes:'Clientes',estoque:'Estoque',compras:'Compras',financeiro:'Financeiro',os:'Ordens de Serviço',relatorios:'Relatórios',empresa:'Minha Empresa',receitas:'Receitas'}
 
 // ===== DB =====
 const DB={get:k=>JSON.parse(localStorage.getItem(k)||'[]'),set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),clear:k=>localStorage.removeItem(k)}
@@ -471,6 +488,7 @@ function render(p){
     case'financeiro':el.innerHTML=finHTML();bindFin();break
     case'os':el.innerHTML=osHTML();bindOS();break
     case'relatorios':el.innerHTML=relHTML();bindRel();break
+    case'receitas':el.innerHTML=receitasHTML();bindReceitas();break
     case'empresa':el.innerHTML=empresaHTML();break
   }
 }
@@ -1544,6 +1562,195 @@ function salvarOS(id){
   const all=DB.get(S.OS);const i=all.findIndex(x=>x.id===id);if(i<0)return
   all[i].prazo=v('osPrazo');all[i].responsavel=v('osResp');all[i].obs=v('osObs')
   DB.set(S.OS,all);closeModal();toast('OS salva!','ok');render('os')
+}
+
+// ===== RECEITAS =====
+const REC_CATS=['Bolos','Tortas','Doces & Bombons','Brigadeiros','Salgados','Biscoitos & Cookies','Bebidas','Sobremesas','Outros']
+const REC_UNIDS=['g','kg','ml','L','xícara','colher de sopa','colher de chá','unidade','fatia','pitada','a gosto']
+const REC_DIFS=['Fácil','Médio','Difícil']
+
+function receitasHTML(){
+  return`
+  <div class="ph">
+    <div><h2>Receitas</h2><p>Fichas técnicas e modos de preparo</p></div>
+    <button class="btn btn-p" onclick="novaReceita()">+ Nova Receita</button>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="tbar">
+      <div class="srch"><svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="srchRec" placeholder="Buscar receita..." oninput="renderReceitasGrid()"></div>
+      <select class="sel-filter" id="filtRec" onchange="renderReceitasGrid()">
+        <option value="">Todas as categorias</option>
+        ${REC_CATS.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+      <select class="sel-filter" id="filtDif" onchange="renderReceitasGrid()">
+        <option value="">Qualquer dificuldade</option>
+        ${REC_DIFS.map(d=>`<option value="${d}">${d}</option>`).join('')}
+      </select>
+    </div>
+    <div id="recGrid"></div>
+  </div>`
+}
+function bindReceitas(){renderReceitasGrid()}
+function renderReceitasGrid(){
+  const q=(document.getElementById('srchRec')||{}).value.toLowerCase()
+  const fc=(document.getElementById('filtRec')||{}).value
+  const fd=(document.getElementById('filtDif')||{}).value
+  let rows=DB.get(S.RECEITAS).sort((a,b)=>a.nome.localeCompare(b.nome))
+  if(q)rows=rows.filter(r=>r.nome.toLowerCase().includes(q)||(r.cat||'').toLowerCase().includes(q))
+  if(fc)rows=rows.filter(r=>r.cat===fc)
+  if(fd)rows=rows.filter(r=>r.dif===fd)
+  const el=document.getElementById('recGrid');if(!el)return
+  if(!rows.length){el.innerHTML=`<div class="empty"><svg width="40" height="40" fill="none" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-7 17.29V21a1 1 0 001 1h12a1 1 0 001-1v-1.71A10 10 0 0012 2z" stroke="currentColor" stroke-width="1.5"/></svg><h3>Nenhuma receita</h3><p>Cadastre a primeira receita</p></div>`;return}
+  const difColor={Fácil:'var(--ok)',Médio:'var(--warn)',Difícil:'var(--bad)'}
+  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;padding:4px 0">
+    ${rows.map(r=>`<div class="rec-card">
+      ${r.foto?`<div class="rec-foto" style="background-image:url('${r.foto.data}')"></div>`:`<div class="rec-foto rec-foto-empty"><svg width="32" height="32" fill="none" viewBox="0 0 24 24" style="opacity:.25"><path d="M12 2a10 10 0 00-7 17.29V21a1 1 0 001 1h12a1 1 0 001-1v-1.71A10 10 0 0012 2z" stroke="currentColor" stroke-width="1.5"/><path d="M12 11V7M9 14c0-1.66 1.34-3 3-3s3 1.34 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>`}
+      <div class="rec-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px">
+          <div>
+            <div class="rec-nome">${r.nome}</div>
+            <div class="rec-cat">${r.cat||'—'}</div>
+          </div>
+          ${r.dif?`<span style="font-size:10px;font-weight:700;color:${difColor[r.dif]||'var(--txt3)'};flex-shrink:0;padding-top:2px">${r.dif}</span>`:''}
+        </div>
+        <div class="rec-meta">
+          ${r.rendimento?`<span title="Rendimento">🍰 ${r.rendimento}</span>`:''}
+          ${r.tpreparo?`<span title="Tempo de preparo">⏱ ${r.tpreparo}</span>`:''}
+          ${r.tcozimento?`<span title="Tempo forno/cozimento">🔥 ${r.tcozimento}</span>`:''}
+          ${r.video?`<span title="Tem vídeo">▶ Vídeo</span>`:''}
+        </div>
+        ${r.ingredientes&&r.ingredientes.length?`<div class="rec-ing-preview">${r.ingredientes.slice(0,3).map(i=>`<span>${i.qtd} ${i.und} ${i.nome}</span>`).join('')}${r.ingredientes.length>3?`<span style="color:var(--txt3)">+${r.ingredientes.length-3} ingredientes</span>`:''}</div>`:''}
+        <div class="rec-actions">
+          <button class="btn btn-s btn-sm" onclick="verReceita('${r.id}')">Ver Receita</button>
+          <button class="btn-ic" onclick="editReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="btn-ic btn-d" onclick="excluirReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+    </div>`).join('')}
+  </div>`
+}
+
+let tempIng=[]
+function novaReceita(){
+  editId=null;tempIng=[{qtd:'',und:'g',nome:''}];tempAnexo=null
+  openModal('Nova Receita',receitaForm({}),
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarReceita()">Salvar Receita</button>`,true)
+  renderIngredientes()
+}
+function editReceita(id){
+  const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
+  editId=id;tempIng=r.ingredientes&&r.ingredientes.length?JSON.parse(JSON.stringify(r.ingredientes)):[{qtd:'',und:'g',nome:''}];tempAnexo=r.foto||null
+  openModal('Editar Receita',receitaForm(r),
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarReceita()">Atualizar Receita</button>`,true)
+  renderIngredientes()
+}
+function receitaForm(r){
+  return`
+  <div class="frow"><div class="fg"><label>Nome da Receita *</label><input id="rNome" value="${r.nome||''}" placeholder="Ex: Bolo de Chocolate"></div>
+  <div class="fg"><label>Categoria</label><select id="rCat">${REC_CATS.map(c=>`<option value="${c}" ${r.cat===c?'selected':''}>${c}</option>`).join('')}</select></div></div>
+  <div class="frow t3"><div class="fg"><label>Rendimento</label><input id="rRend" value="${r.rendimento||''}" placeholder="Ex: 12 fatias"></div>
+  <div class="fg"><label>Tempo de Preparo</label><input id="rTprep" value="${r.tpreparo||''}" placeholder="Ex: 30 min"></div>
+  <div class="fg"><label>Tempo Forno/Cozimento</label><input id="rTcoz" value="${r.tcozimento||''}" placeholder="Ex: 45 min"></div></div>
+  <div class="frow"><div class="fg"><label>Dificuldade</label><select id="rDif"><option value="">Selecione...</option>${REC_DIFS.map(d=>`<option value="${d}" ${r.dif===d?'selected':''}>${d}</option>`).join('')}</select></div>
+  <div class="fg"><label>Custo Estimado (R$)</label><input type="number" id="rCusto" value="${r.custo||''}" placeholder="0,00" min="0" step="0.01"></div></div>
+  <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Ingredientes</div>
+  <div id="ingList" style="margin-bottom:8px"></div>
+  <button class="btn btn-s btn-sm" onclick="addIngrediente()" style="margin-bottom:14px">+ Ingrediente</button>
+  <div class="fg"><label>Modo de Preparo *</label><textarea id="rPreparo" style="min-height:120px" placeholder="Descreva o passo a passo da receita...">${r.preparo||''}</textarea></div>
+  <div class="fg"><label>Dicas e Observações</label><textarea id="rDicas" placeholder="Dicas, substituições, variações...">${r.dicas||''}</textarea></div>
+  <div class="fg"><label>Link de Vídeo (YouTube, Instagram, etc.)</label><input id="rVideo" type="url" value="${r.video||''}" placeholder="https://www.youtube.com/watch?v=..."></div>
+  ${anexoWidget(r.foto||null,'Foto da Receita')}
+  `
+}
+function renderIngredientes(){
+  const el=document.getElementById('ingList');if(!el)return
+  el.innerHTML=tempIng.map((ing,i)=>`
+    <div style="display:grid;grid-template-columns:70px 90px 1fr 30px;gap:6px;align-items:center;margin-bottom:5px">
+      <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value" style="padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;width:100%;outline:none;color:var(--txt)">
+      <select onchange="tempIng[${i}].und=this.value" style="padding:6px 7px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
+        ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
+      </select>
+      <input placeholder="Ingrediente" value="${ing.nome||''}" oninput="tempIng[${i}].nome=this.value" style="padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;width:100%;outline:none;color:var(--txt)">
+      <button class="btn-ic btn-d" onclick="remIngrediente(${i})" style="padding:5px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>`).join('')
+}
+function addIngrediente(){tempIng.push({qtd:'',und:'g',nome:''});renderIngredientes()}
+function remIngrediente(i){if(tempIng.length>1)tempIng.splice(i,1);else tempIng=[{qtd:'',und:'g',nome:''}];renderIngredientes()}
+
+function salvarReceita(){
+  const nome=(document.getElementById('rNome')||{}).value||''
+  if(!nome.trim()){toast('Informe o nome da receita','err');return}
+  const r={
+    id:editId||genId(),
+    nome:nome.trim(),
+    cat:(document.getElementById('rCat')||{}).value,
+    rendimento:v('rRend'),
+    tpreparo:v('rTprep'),
+    tcozimento:v('rTcoz'),
+    dif:(document.getElementById('rDif')||{}).value,
+    custo:parseFloat((document.getElementById('rCusto')||{}).value)||0,
+    ingredientes:tempIng.filter(x=>x.nome.trim()),
+    preparo:(document.getElementById('rPreparo')||{}).value||'',
+    dicas:(document.getElementById('rDicas')||{}).value||'',
+    video:v('rVideo'),
+    foto:tempAnexo,
+    dt:today()
+  }
+  const recs=DB.get(S.RECEITAS)
+  if(editId){const i=recs.findIndex(x=>x.id===editId);if(i>=0)recs[i]=r}
+  else recs.push(r)
+  DB.set(S.RECEITAS,recs)
+  closeModal();toast(editId?'Receita atualizada!':'Receita salva!','ok');render('receitas')
+}
+
+function excluirReceita(id){
+  if(!confirm('Excluir esta receita?'))return
+  DB.set(S.RECEITAS,DB.get(S.RECEITAS).filter(x=>x.id!==id))
+  toast('Receita excluída','ok');render('receitas')
+}
+
+function _ytId(url){
+  if(!url)return null
+  const m=url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/)
+  return m?m[1]:null
+}
+function verReceita(id){
+  const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
+  const ytId=_ytId(r.video)
+  const difColor={Fácil:'var(--ok)',Médio:'var(--warn)',Difícil:'var(--bad)'}
+  openModal(r.nome,`
+    <div style="margin:-18px -22px 0">
+      ${r.foto?`<img src="${r.foto.data}" style="width:100%;height:180px;object-fit:cover">`:
+      `<div style="height:6px;background:linear-gradient(90deg,var(--cara),var(--cara2))"></div>`}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 6px">
+      ${r.cat?`<span class="bdg bdg-gr">${r.cat}</span>`:''}
+      ${r.dif?`<span class="bdg" style="background:${difColor[r.dif]||'var(--cream2)'};color:#fff">${r.dif}</span>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:14px">
+      ${r.rendimento?`<div style="background:var(--cream);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px">Rendimento</div><div style="font-size:13px;font-weight:600;color:var(--choc);margin-top:3px">${r.rendimento}</div></div>`:''}
+      ${r.tpreparo?`<div style="background:var(--cream);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px">Preparo</div><div style="font-size:13px;font-weight:600;color:var(--choc);margin-top:3px">${r.tpreparo}</div></div>`:''}
+      ${r.tcozimento?`<div style="background:var(--cream);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px">Forno/Cozimento</div><div style="font-size:13px;font-weight:600;color:var(--choc);margin-top:3px">${r.tcozimento}</div></div>`:''}
+      ${r.custo?`<div style="background:var(--cream);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px">Custo Est.</div><div style="font-size:13px;font-weight:600;color:var(--choc);margin-top:3px">${fmt(r.custo)}</div></div>`:''}
+    </div>
+    ${r.ingredientes&&r.ingredientes.length?`
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Ingredientes</div>
+    <div style="background:var(--cream);border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      ${r.ingredientes.map(i=>`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--cream2);font-size:13px"><span style="color:var(--cara);font-weight:600;min-width:80px">${i.qtd} ${i.und}</span><span>${i.nome}</span></div>`).join('')}
+    </div>`:''}
+    ${r.preparo?`
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Modo de Preparo</div>
+    <div style="font-size:13px;color:var(--txt);line-height:1.7;white-space:pre-wrap;margin-bottom:14px">${r.preparo}</div>`:''}
+    ${r.dicas?`
+    <div style="background:#fff8f0;border-left:3px solid var(--cara);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--cara);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Dicas</div>
+      <div style="font-size:13px;color:var(--txt2);line-height:1.6">${r.dicas}</div>
+    </div>`:''}
+    ${r.video?`
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Vídeo</div>
+    ${ytId?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;margin-bottom:14px"><iframe src="https://www.youtube.com/embed/${ytId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy"></iframe></div>`:
+    `<a href="${r.video}" target="_blank" rel="noopener" class="btn btn-s btn-sm" style="margin-bottom:14px;display:inline-flex"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Assistir vídeo</a>`}`:''}
+  `,`<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-p" onclick="closeModal();editReceita('${r.id}')">Editar</button>`,false)
 }
 
 // ===== PRINT =====
