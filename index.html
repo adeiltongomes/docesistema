@@ -943,8 +943,9 @@ function statusOrc(id,status){
   })
   if(status==='aprovado'){
     toast('Orçamento aprovado!','ok')
-    if(confirm('Deseja gerar uma Ordem de Serviço a partir deste orçamento?'))gerarOS(id)
-    else render('orcamentos')
+    openModal('Gerar Ordem de Serviço?',
+      `<p style="font-size:14px;color:var(--txt);line-height:1.6;padding:6px 0">Orçamento aprovado! Deseja gerar uma <strong>Ordem de Serviço</strong> agora?</p>`,
+      `<button class="btn btn-s" onclick="closeModal();render('orcamentos')">Agora não</button><button class="btn btn-p" style="background:var(--ok)" onclick="closeModal();gerarOS('${id}')">✓ Gerar OS</button>`)
   }else if(status==='recusado'){
     toast('Orçamento marcado como recusado','warn')
   }else{
@@ -952,9 +953,11 @@ function statusOrc(id,status){
   }
 }
 function excluirOrc(id){
-  if(!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.'))return
-  DB.set(S.ORCAMENTOS,DB.get(S.ORCAMENTOS).filter(x=>x.id!==id))
-  toast('Orçamento excluído','ok');render('orcamentos')
+  const o=DB.get(S.ORCAMENTOS).find(x=>x.id===id);if(!o)return
+  confirmarModal(`Deseja excluir o <strong>Orçamento #${String(o.num||'').padStart(3,'0')}</strong>?<br><small style="color:var(--txt3)">Esta ação não pode ser desfeita.</small>`,()=>{
+    DB.set(S.ORCAMENTOS,DB.get(S.ORCAMENTOS).filter(x=>x.id!==id))
+    toast('Orçamento excluído','ok');render('orcamentos')
+  })
 }
 function verOrc(id){
   const o=DB.get(S.ORCAMENTOS).find(x=>x.id===id);if(!o)return
