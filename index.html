@@ -1837,14 +1837,22 @@ function renderReceitasGrid(){
 
 let tempIng=[]
 function novaReceita(){
-  editId=null;tempIng=[{qtd:'',und:'g',nome:''}];tempAnexo=null;tempAudioPrep=null;pararGravacao()
+  editId=null;tempIng=[{qtd:'',und:'g',nome:'',pId:''}];tempAnexo=null;tempAudioPrep=null;pararGravacao()
   openModal('Nova Receita',receitaForm({}),
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarReceita()">Salvar Receita</button>`,true)
   renderIngredientes();renderAudioWidget()
 }
 function editReceita(id){
   const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
-  editId=id;tempIng=r.ingredientes&&r.ingredientes.length?JSON.parse(JSON.stringify(r.ingredientes)):[{qtd:'',und:'g',nome:''}];tempAnexo=r.foto||null;tempAudioPrep=r.audioPrep||null;pararGravacao()
+  const estoqueIngs=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente')
+  editId=id
+  tempIng=r.ingredientes&&r.ingredientes.length
+    ?JSON.parse(JSON.stringify(r.ingredientes)).map(ing=>{
+        if(!ing.pId||ing.pId===''){const m=estoqueIngs.find(p=>p.nome.toLowerCase().trim()===ing.nome.toLowerCase().trim());if(m)ing.pId=m.id}
+        return ing
+      })
+    :[{qtd:'',und:'g',nome:'',pId:''}]
+  tempAnexo=r.foto||null;tempAudioPrep=r.audioPrep||null;pararGravacao()
   openModal('Editar Receita',receitaForm(r),
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarReceita()">Atualizar Receita</button>`,true)
   renderIngredientes();renderAudioWidget()
@@ -1882,18 +1890,36 @@ function receitaForm(r){
 }
 function renderIngredientes(){
   const el=document.getElementById('ingList');if(!el)return
+  const estoqueIngs=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo!==false)
+  const stl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%'
   el.innerHTML=tempIng.map((ing,i)=>`
     <div style="display:grid;grid-template-columns:70px 90px 1fr 30px;gap:6px;align-items:center;margin-bottom:5px">
-      <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value" style="padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;width:100%;outline:none;color:var(--txt)">
-      <select onchange="tempIng[${i}].und=this.value" style="padding:6px 7px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
+      <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value" style="${stl}">
+      <select onchange="tempIng[${i}].und=this.value" style="${stl}">
         ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
       </select>
-      <input placeholder="Ingrediente" value="${ing.nome||''}" oninput="tempIng[${i}].nome=this.value" style="padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;width:100%;outline:none;color:var(--txt)">
+      ${ing.pId==='_custom'
+        ?`<div style="display:flex;gap:4px;align-items:center">
+            <button onclick="selectIngRec(${i},'')" title="Voltar à lista" style="padding:5px 8px;border:1.5px solid var(--cream2);border-radius:7px;background:var(--cream);font-size:11px;cursor:pointer;color:var(--txt2);font-family:inherit;white-space:nowrap;flex-shrink:0">← Lista</button>
+            <input id="ingNomeCustom_${i}" placeholder="Nome do ingrediente" value="${ing.nome||''}" oninput="tempIng[${i}].nome=this.value" style="${stl};border-color:var(--cara)">
+          </div>`
+        :`<select onchange="selectIngRec(${i},this.value)" style="${stl}">
+            <option value="">Selecionar ingrediente do estoque...</option>
+            ${estoqueIngs.map(p=>`<option value="${p.id}" ${ing.pId===p.id?'selected':''}>${p.nome} (${p.un})</option>`).join('')}
+            <option value="_custom">＋ Digitar manualmente</option>
+          </select>`}
       <button class="btn-ic btn-d" onclick="remIngrediente(${i})" style="padding:5px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>`).join('')
 }
-function addIngrediente(){tempIng.push({qtd:'',und:'g',nome:''});renderIngredientes()}
-function remIngrediente(i){if(tempIng.length>1)tempIng.splice(i,1);else tempIng=[{qtd:'',und:'g',nome:''}];renderIngredientes()}
+function selectIngRec(i,pId){
+  if(pId==='_custom'){tempIng[i].pId='_custom';tempIng[i].nome=''}
+  else if(pId){const p=DB.get(S.PRODUTOS).find(x=>x.id===pId);if(p){tempIng[i].pId=pId;tempIng[i].nome=p.nome;tempIng[i].und=p.un}}
+  else{tempIng[i].pId='';tempIng[i].nome=''}
+  renderIngredientes()
+  if(pId==='_custom')setTimeout(()=>{const inp=document.getElementById('ingNomeCustom_'+i);if(inp)inp.focus()},40)
+}
+function addIngrediente(){tempIng.push({qtd:'',und:'g',nome:'',pId:''});renderIngredientes()}
+function remIngrediente(i){if(tempIng.length>1)tempIng.splice(i,1);else tempIng=[{qtd:'',und:'g',nome:'',pId:''}];renderIngredientes()}
 
 // ===== AUDIO PREPARO =====
 function renderAudioWidget(){
@@ -1985,7 +2011,7 @@ function salvarReceita(){
     tcozimento:v('rTcoz'),
     dif:(document.getElementById('rDif')||{}).value,
     custo:parseFloat((document.getElementById('rCusto')||{}).value)||0,
-    ingredientes:tempIng.filter(x=>x.nome.trim()),
+    ingredientes:tempIng.filter(x=>(x.pId&&x.pId!=='_custom')||x.nome.trim()),
     preparo:(document.getElementById('rPreparo')||{}).value||'',
     dicas:(document.getElementById('rDicas')||{}).value||'',
     video:v('rVideo'),
@@ -2029,13 +2055,15 @@ function atualizarPreviewProd(id,lotes){
   lotes=Math.max(1,parseInt(lotes)||1)
   const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
   const el=document.getElementById('previewProdIngredientes');if(!el)return
-  const ings=(r.ingredientes||[]).filter(x=>x.nome&&x.nome.trim())
+  const ings=(r.ingredientes||[]).filter(x=>(x.pId&&x.pId!=='_custom')||x.nome&&x.nome.trim())
   if(!ings.length){el.innerHTML=`<div class="empty" style="padding:20px 0"><p>Esta receita não tem ingredientes cadastrados.</p></div>`;return}
   const prods=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente')
   let temProblema=false
   const rows=ings.map(ing=>{
     const qtdTotal=(parseFloat(ing.qtd)||0)*lotes
-    const prod=prods.find(p=>p.nome.toLowerCase().trim()===ing.nome.toLowerCase().trim())
+    const prod=ing.pId&&ing.pId!=='_custom'
+      ?prods.find(p=>p.id===ing.pId)
+      :prods.find(p=>p.nome.toLowerCase().trim()===(ing.nome||'').toLowerCase().trim())
     const estoqueAtual=prod!=null?prod.estoque:null
     const estoqueApos=estoqueAtual!=null?estoqueAtual-qtdTotal:null
     let status,cor
@@ -2066,7 +2094,9 @@ function confirmarProducao(id){
   ;(r.ingredientes||[]).forEach(ing=>{
     const qtdTotal=(parseFloat(ing.qtd)||0)*lotes
     if(qtdTotal<=0)return
-    const i=prods.findIndex(p=>p.tipo==='ingrediente'&&p.nome.toLowerCase().trim()===ing.nome.toLowerCase().trim())
+    const i=ing.pId&&ing.pId!=='_custom'
+      ?prods.findIndex(p=>p.id===ing.pId)
+      :prods.findIndex(p=>p.tipo==='ingrediente'&&p.nome.toLowerCase().trim()===(ing.nome||'').toLowerCase().trim())
     if(i>=0){prods[i].estoque=Math.max(0,prods[i].estoque-qtdTotal);descontados++}
   })
   DB.set(S.PRODUTOS,prods)
