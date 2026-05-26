@@ -1446,14 +1446,16 @@ function gerarLinkOrc(id){
   const o=DB.get(S.ORCAMENTOS).find(x=>x.id===id);if(!o)return
   const cli=DB.get(S.CLIENTES).find(x=>x.id===o.cliId)||{}
   const e=getEmpresa()
-  // Payload compacto — exclui logo e campos não usados na visualização
-  const p={
-    n:e.fantasia||e.nome||'',ef:e.fone||'',ee:e.email||'',ew:e.wa||'',
-    i:o.id.slice(-4).toUpperCase(),v:o.validade,t:o.total,d:o.desc||0,tf:o.totalF,ob:o.obs||'',
-    it:o.itens.map(x=>({n:x.nome||x.desc||'',q:x.qtd,s:x.sub})),
-    cn:cli.nome||'',cf:cli.fone||''
-  }
-  const url=`${location.origin}${location.pathname}#orcview=${btoa(unescape(encodeURIComponent(JSON.stringify(p))))}`
+  // Payload mínimo: só inclui campos não-vazios; itens como arrays [nome,qtd,sub]
+  const p={}
+  const _en=e.fantasia||e.nome||'';if(_en)p.n=_en
+  if(e.fone)p.ef=e.fone;if(e.email)p.ee=e.email;if(e.wa)p.ew=e.wa
+  p.i=o.id.slice(-4).toUpperCase();p.v=o.validade;p.t=o.total
+  if(o.desc)p.d=o.desc;p.tf=o.totalF
+  if(o.obs)p.ob=o.obs
+  p.it=o.itens.map(x=>[x.nome||x.desc||'',x.qtd,x.sub])
+  if(cli.nome)p.cn=cli.nome;if(cli.fone)p.cf=cli.fone
+  const url=`${location.origin}${location.pathname}#orcview=${btoa(unescape(encodeURIComponent(JSON.stringify(p)))).replace(/=+$/,'')}`
   openModal('Link para o Cliente',`
     <div style="margin-bottom:14px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:var(--txt2)">
       Compartilhe este link com o cliente. Ele poderá visualizar e aprovar o orçamento.
@@ -1475,7 +1477,8 @@ function checkClientView(){
   const hash=location.hash
   if(!hash.startsWith('#orcview='))return
   try{
-    const raw=atob(hash.slice(9));const data=JSON.parse(decodeURIComponent(escape(raw)))
+    const b64=hash.slice(9).replace(/-/g,'+').replace(/_/g,'/');const pad=b64.length%4?'='.repeat(4-b64.length%4):'';
+    const data=JSON.parse(decodeURIComponent(escape(atob(b64+pad))))
     showClientView(data)
   }catch(err){console.error(err)}
 }
@@ -1490,7 +1493,8 @@ function showClientView(raw){
   }else{
     nome=raw.n||'Confeitaria';ef=raw.ef||'';ee=raw.ee||'';ew=raw.ew||''
     oid=raw.i||'';validade=raw.v;total=raw.t;desc=raw.d||0;totalF=raw.tf;obs=raw.ob||''
-    itens=raw.it||[];clinome=raw.cn||'';clifone=raw.cf||''
+    itens=(raw.it||[]).map(x=>Array.isArray(x)?{n:x[0],q:x[1],s:x[2]}:x)
+    clinome=raw.cn||'';clifone=raw.cf||''
   }
   const ov=document.getElementById('clientViewOverlay')
   ov.style.display='block'
