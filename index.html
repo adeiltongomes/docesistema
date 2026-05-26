@@ -60,11 +60,15 @@ body{font-family:'Trebuchet MS','Calibri',sans-serif;background:var(--cream);col
 .srch svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--txt3)}
 .tc{overflow-x:auto;border-radius:var(--r);-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-size:13px}
-thead th{background:var(--cream);color:var(--txt3);font-size:11px;text-transform:uppercase;letter-spacing:.7px;padding:9px 13px;text-align:left;border-bottom:1px solid var(--cream2)}
-tbody tr{border-bottom:1px solid var(--cream2);transition:background .1s}
-tbody tr:hover{background:var(--cream)}
+thead th{background:var(--choc);color:rgba(255,255,255,.88);font-size:10.5px;text-transform:uppercase;letter-spacing:1.1px;padding:11px 14px;text-align:left;font-weight:700;white-space:nowrap}
+thead th:first-child{border-radius:8px 0 0 0}
+thead th:last-child{border-radius:0 8px 0 0}
+tbody tr{border-bottom:1px solid var(--cream2);transition:background .12s}
+tbody tr:nth-child(even){background:var(--cream)}
+tbody tr:hover{background:#E8E4DC}
 tbody tr:last-child{border-bottom:none}
-tbody td{padding:11px 13px;color:var(--txt)}
+tbody td{padding:12px 14px;color:var(--txt);vertical-align:middle}
+tbody td:first-child{font-weight:600;color:var(--txt2);white-space:nowrap}
 .bdg{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .bdg-g{background:#E8F4EE;color:#2E7D52}.bdg-y{background:#FFF3E0;color:#B05000}.bdg-r{background:#FCEAEA;color:var(--bad)}.bdg-b{background:#E3F2FD;color:#1565C0}.bdg-gr{background:var(--cream2);color:var(--txt2)}
 .modal-ov{position:fixed;inset:0;background:rgba(28,26,24,.52);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;padding:16px}
@@ -111,7 +115,7 @@ tbody td{padding:11px 13px;color:var(--txt)}
 .fin-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--cream2)}
 .fin-row:last-child{border-bottom:none}
 .fin-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.fin-amt{font-size:14px;font-weight:700}
+.fin-amt{font-size:15px;font-weight:800;letter-spacing:-.3px}
 .fin-amt.inc{color:var(--ok)}.fin-amt.exp{color:var(--bad)}
 .sel-filter{padding:7px 10px;border:1.5px solid var(--cream2);border-radius:8px;font-size:13px;font-family:inherit;background:var(--cream);color:var(--txt);outline:none;cursor:pointer}
 .sel-filter:focus{border-color:var(--cara)}
@@ -159,7 +163,7 @@ tbody td{padding:11px 13px;color:var(--txt)}
   .tbar{gap:8px}
   .tbar .srch{min-width:0}
   table{font-size:12px}
-  thead th{padding:8px 10px;font-size:10px}
+  thead th{padding:9px 10px;font-size:9.5px;letter-spacing:.8px}
   tbody td{padding:9px 10px}
   .btn-ic{padding:9px}
   .toast-wrap{bottom:72px;right:12px;left:12px}
@@ -608,9 +612,9 @@ function renderVendasTable(){
     ${rows.map(v=>`<tr>
       <td>${fmtDate(v.data)}</td>
       <td><strong>${clienteNome(v.cliId)}</strong></td>
-      <td style="color:var(--txt3)">${v.itens.length} ite${v.itens.length>1?'ns':'m'}</td>
-      <td>${v.pgto}</td>
-      <td><strong>${fmt(v.totalF)}</strong>${v.desc>0?`<br><small style="color:var(--txt3)">desc: ${fmt(v.desc)}</small>`:''}</td>
+      <td><span class="bdg" style="background:var(--cream2);color:var(--txt2)">${v.itens.length} ite${v.itens.length>1?'ns':'m'}</span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--txt2)"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M2 10h20" stroke="currentColor" stroke-width="2"/></svg>${v.pgto}</span></td>
+      <td><strong style="font-size:15px;font-weight:800;color:var(--ok)">${fmt(v.totalF)}</strong>${v.desc>0?`<br><small style="color:var(--txt3)">desc: ${fmt(v.desc)}</small>`:''}</td>
       <td>${v.status==='pago'?'<span class="bdg bdg-g">Pago</span>':'<span class="bdg bdg-y">Pendente</span>'}${v.comprovante?`<span class="anexo-clip" title="Comprovante anexado"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`:''}</td>
       <td style="white-space:nowrap">
         <button class="btn-ic" style="margin-right:4px" title="Ver" onclick="verVenda('${v.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
@@ -800,9 +804,9 @@ function renderOrcTable(){
   el.innerHTML=`<table><thead><tr><th>Data</th><th>Cliente</th><th>Itens</th><th>Validade</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
     ${rows.map(o=>`<tr>
       <td>${fmtDate(o.data)}</td><td><strong>${clienteNome(o.cliId)}</strong></td>
-      <td style="color:var(--txt3)">${o.itens.length} item(s)</td>
-      <td>${fmtDate(o.validade)}</td>
-      <td><strong>${fmt(o.totalF)}</strong></td>
+      <td><span class="bdg" style="background:var(--cream2);color:var(--txt2)">${o.itens.length} item(s)</span></td>
+      <td style="font-weight:600">${fmtDate(o.validade)}</td>
+      <td><strong style="font-size:15px;font-weight:800;color:var(--cara)">${fmt(o.totalF)}</strong></td>
       <td><select class="orc-st-sel orc-st-${o.status}" onchange="statusOrc('${o.id}',this.value)">
         <option value="pendente" ${o.status==='pendente'?'selected':''}>Pendente</option>
         <option value="aprovado" ${o.status==='aprovado'?'selected':''}>Aprovado</option>
@@ -1335,9 +1339,9 @@ function renderFinTable(){
     ${rows.map(t=>`<tr>
       <td>${fmtDate(t.data)}</td>
       <td>${t.tipo==='entrada'?'<span class="bdg bdg-g">Entrada</span>':'<span class="bdg bdg-r">Saída</span>'}</td>
-      <td style="color:var(--txt3)">${t.cat}</td>
-      <td>${t.desc}</td>
-      <td>${t.pgto||'—'}</td>
+      <td><span style="display:inline-block;background:var(--cream2);color:var(--txt2);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">${t.cat}</span></td>
+      <td style="max-width:200px"><strong style="color:var(--txt);font-size:13px">${t.desc}</strong></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--txt2)"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M2 10h20" stroke="currentColor" stroke-width="2"/></svg>${t.pgto||'—'}</span></td>
       <td><strong class="${t.tipo==='entrada'?'fin-amt inc':'fin-amt exp'}">${t.tipo==='entrada'?'+':'-'} ${fmt(t.val)}</strong></td>
       <td><button class="btn-ic btn-d" onclick="excluirTrans('${t.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
     </tr>`).join('')}
