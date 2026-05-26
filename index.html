@@ -1396,48 +1396,45 @@ function excluirCompra(id){
 }
 function imprimirCompra(id){
   const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
-  const w=window.open('','_blank')
-  const parc=(c.parcelas||1)>1?`<tr><td style="font-weight:600">Parcelamento</td><td><strong style="color:#B8912A">${c.parcelas}× de ${fmt(c.valorParcela)}</strong></td></tr>`:''
-  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Compra — ${c.forn}</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Trebuchet MS',sans-serif;color:#2D1222;padding:28px}
-  .doc{max-width:800px;margin:0 auto}
-  h1{font-family:'Palatino Linotype',serif;font-size:20px;color:#B8912A;margin-bottom:4px}
-  .sub{font-size:12px;color:#8A7E6E;margin-bottom:20px}
-  .info-tbl{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px}
-  .info-tbl td{padding:7px 12px;border:1px solid #EDEBE6}
-  .info-tbl td:first-child{background:#F8F7F4;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#8A7E6E;width:130px}
-  .prod-hdr{background:#1C1A18;color:#fff;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:0}
-  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
-  thead th{background:#1C1A18;color:#fff;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.8px}
-  tbody td{padding:8px 12px;border-bottom:1px solid #EDEBE6}
-  tbody tr:nth-child(even){background:#F8F7F4}
-  .total-row{background:#1C1A18;color:#fff;display:flex;justify-content:space-between;padding:10px 12px;font-size:15px;font-weight:700;border-radius:0 0 6px 6px}
-  .parc-row{background:#FDF8EE;border:1px solid #B8912A;border-top:none;display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;font-weight:700;color:#B8912A}
-  .footer{margin-top:28px;border-top:1px solid #EDEBE6;padding-top:12px;font-size:11px;color:#8A7E6E;text-align:center}
-  @media print{body{padding:16px}}</style></head><body>
-  <div class="doc">
-    <div style="border-bottom:3px solid #B8912A;padding-bottom:12px;margin-bottom:20px">
-      <h1>Compra de Insumos</h1>
-      <div class="sub">${getEmpresa().fantasia||getEmpresa().nome||'Minha Empresa'} · ${fmtDate(c.data)}</div>
+  const w=window.open('','_blank','width=900,height=700')
+  const infoRows=[
+    `<tr><th>Fornecedor</th><td><strong>${c.forn}</strong></td><th>Data</th><td>${fmtDate(c.data)}</td></tr>`,
+    `<tr><th>Pagamento</th><td>${c.pgto}</td><th>Nota Fiscal</th><td>${c.nf||'—'}</td></tr>`,
+    (c.parcelas||1)>1?`<tr><th>Parcelamento</th><td colspan="3"><strong style="color:#B8912A">${c.parcelas}× de ${fmt(c.valorParcela)}</strong></td></tr>`:'',
+    c.obs?`<tr><th>Observações</th><td colspan="3">${c.obs}</td></tr>`:''
+  ].filter(Boolean).join('')
+  w.document.write(docHead('COMPRA DE INSUMOS')+
+    `<div class="doc-title-row">
+      <div class="doc-title-num">COMPRA DE INSUMOS</div>
+      <div class="doc-title-date">${fmtDate(c.data)}</div>
     </div>
-    <table class="info-tbl" style="margin-bottom:20px">
-      <tr><td>Fornecedor</td><td><strong>${c.forn}</strong></td></tr>
-      <tr><td>Data</td><td>${fmtDate(c.data)}</td></tr>
-      <tr><td>Pagamento</td><td>${c.pgto}</td></tr>
-      ${parc}
-      ${c.nf?`<tr><td>Nota Fiscal</td><td>${c.nf}</td></tr>`:''}
-      ${c.obs?`<tr><td>Observações</td><td>${c.obs}</td></tr>`:''}
+    <div class="section"><div class="cli-table-wrap">
+      <div class="cli-table-title">DADOS DA COMPRA</div>
+      <table class="cli-table">${infoRows}</table>
+    </div></div>
+    <div class="prod-hdr">ITENS COMPRADOS</div>
+    <table class="prod-table">
+      <thead><tr>
+        <th class="c" style="width:36px">ITEM</th>
+        <th>INGREDIENTE</th>
+        <th class="c">QTD.</th>
+        <th class="r">VR. UNIT.</th>
+        <th class="r">SUBTOTAL</th>
+      </tr></thead>
+      <tbody>
+        ${c.itens.map((it,i)=>`<tr>
+          <td class="n">${i+1}</td>
+          <td>${it.nome||''}</td>
+          <td class="c">${it.qtd}</td>
+          <td class="r">${fmt(it.pu)}</td>
+          <td class="r">${fmt(it.sub)}</td>
+        </tr>`).join('')}
+      </tbody>
     </table>
-    <div class="prod-hdr">Itens Comprados</div>
-    <table><thead><tr><th>Item</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead><tbody>
-      ${c.itens.map(i=>`<tr><td>${i.nome||''}</td><td>${i.qtd}</td><td>${fmt(i.pu)}</td><td>${fmt(i.sub)}</td></tr>`).join('')}
-    </tbody></table>
-    ${(c.parcelas||1)>1?`<div class="parc-row"><span>${c.parcelas}× parcelas de</span><span>${fmt(c.valorParcela)}</span></div>`:''}
-    <div class="total-row"><span>Total da Compra</span><span>${fmt(c.total)}</span></div>
-    <div class="footer">Documento gerado em ${new Date().toLocaleDateString('pt-BR')} · DoceSistema</div>
-  </div>
-  <script>window.onload=()=>{window.print()}<\/script></body></html>`)
-  w.document.close()
+    ${(c.parcelas||1)>1?`<div class="disc-row"><span>${c.parcelas}× parcelas de</span><span>${fmt(c.valorParcela)}</span></div>`:''}
+    <div class="total-row"><span>TOTAL DA COMPRA</span><span>${fmt(c.total)}</span></div>`
+    +docFoot('',false))
+  w.document.close();setTimeout(()=>w.print(),400)
 }
 
 // ===== FINANCEIRO =====
@@ -2483,40 +2480,45 @@ function relCliHTML(de,ate){
 }
 function imprimirRelatorio(){
   const {de,ate}=getRelDatas()
-  const e=getEmpresa();const nome=e.fantasia||e.nome||'Empresa'
   const vs=DB.get(S.VENDAS).filter(v=>v.data>=de&&v.data<=ate)
   const ts=DB.get(S.TRANS).filter(t=>t.data>=de&&t.data<=ate)
   const ent=ts.filter(t=>t.tipo==='entrada').reduce((a,t)=>a+t.val,0)
   const sai=ts.filter(t=>t.tipo==='saida').reduce((a,t)=>a+t.val,0)
+  const fat=vs.reduce((a,v)=>a+v.totalF,0)
+  const res=ent-sai
+  const statStyle=(cor)=>`flex:1;background:#F8F7F4;border-radius:6px;padding:12px;border-left:3px solid ${cor}`
   const w=window.open('','_blank','width=900,height=700')
-  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Trebuchet MS',sans-serif;color:#1C1A18;padding:32px}
-  h1{font-family:'Palatino Linotype',serif;font-size:20px;color:#B8912A;margin-bottom:4px}
-  h2{font-family:'Palatino Linotype',serif;font-size:15px;color:#1C1A18;margin:20px 0 10px;border-bottom:1px solid #EDEBE6;padding-bottom:6px}
-  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px}
-  th{background:#EDEBE6;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase}
-  td{padding:7px 10px;border-bottom:1px solid #EDEBE6}
-  .stats{display:flex;gap:12px;margin-bottom:16px}
-  .stat-box{flex:1;background:#F8F7F4;border-radius:8px;padding:12px;border-left:3px solid #B8912A}
-  .stat-box.g{border-color:#4A8A65}.stat-box.r{border-color:#B84040}
-  .slbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#8A7E6E}
-  .sval{font-family:'Palatino Linotype',serif;font-size:20px;color:#1C1A18}
-  @media print{body{padding:16px}}</style></head><body>
-  <div style="border-bottom:3px solid #B8912A;padding-bottom:12px;margin-bottom:20px">
-    <h1>${nome} — Relatório de Gestão</h1>
-    <div style="font-size:12px;color:#8A7E6E">Período: ${fmtDate(de)} a ${fmtDate(ate)}</div>
-  </div>
-  <div class="stats">
-    <div class="stat-box g"><div class="slbl">Faturamento</div><div class="sval">${fmt(vs.reduce((a,v)=>a+v.totalF,0))}</div></div>
-    <div class="stat-box g"><div class="slbl">Entradas</div><div class="sval">${fmt(ent)}</div></div>
-    <div class="stat-box r"><div class="slbl">Saídas</div><div class="sval">${fmt(sai)}</div></div>
-    <div class="stat-box ${ent-sai>=0?'g':'r'}"><div class="slbl">Resultado</div><div class="sval">${fmt(ent-sai)}</div></div>
-  </div>
-  <h2>Vendas no Período (${vs.length})</h2>
-  <table><thead><tr><th>Data</th><th>Cliente</th><th>Pagamento</th><th>Status</th><th>Total</th></tr></thead><tbody>
-    ${vs.map(vd=>`<tr><td>${fmtDate(vd.data)}</td><td>${clienteNome(vd.cliId)}</td><td>${vd.pgto}</td><td>${vd.status==='pago'?'Pago':'Pendente'}</td><td><strong>${fmt(vd.totalF)}</strong></td></tr>`).join('')}
-  </tbody></table>
-  </body></html>`)
+  w.document.write(docHead('RELATÓRIO DE GESTÃO')+
+    `<div class="doc-title-row">
+      <div class="doc-title-num">RELATÓRIO DE GESTÃO</div>
+      <div class="doc-title-date">${fmtDate(de)} a ${fmtDate(ate)}</div>
+    </div>
+    <div class="info-bar" style="margin-bottom:16px">
+      <span>PERÍODO: ${fmtDate(de)} a ${fmtDate(ate)}</span>
+      <span>VENDAS: ${vs.length}</span>
+      <span>LANÇAMENTOS: ${ts.length}</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:20px">
+      <div style="${statStyle('#B8912A')}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#8A7E6E">Faturamento</div><div style="font-family:'Palatino Linotype',serif;font-size:20px;color:#1C1A18">${fmt(fat)}</div></div>
+      <div style="${statStyle('#3D8A5E')}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#8A7E6E">Entradas</div><div style="font-family:'Palatino Linotype',serif;font-size:20px;color:#3D8A5E">${fmt(ent)}</div></div>
+      <div style="${statStyle('#B84040')}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#8A7E6E">Saídas</div><div style="font-family:'Palatino Linotype',serif;font-size:20px;color:#B84040">${fmt(sai)}</div></div>
+      <div style="${statStyle(res>=0?'#3D8A5E':'#B84040')}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#8A7E6E">Resultado</div><div style="font-family:'Palatino Linotype',serif;font-size:20px;color:${res>=0?'#3D8A5E':'#B84040'}">${fmt(res)}</div></div>
+    </div>
+    <div class="prod-hdr">VENDAS NO PERÍODO (${vs.length})</div>
+    <table class="prod-table">
+      <thead><tr><th>DATA</th><th>CLIENTE</th><th>PAGAMENTO</th><th>STATUS</th><th class="r">TOTAL</th></tr></thead>
+      <tbody>
+        ${vs.length?vs.map(vd=>`<tr><td>${fmtDate(vd.data)}</td><td>${clienteNome(vd.cliId)}</td><td>${vd.pgto}</td><td>${vd.status==='pago'?'✓ Pago':'Pendente'}</td><td class="r"><strong>${fmt(vd.totalF)}</strong></td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#8A7E6E;padding:16px">Nenhuma venda no período</td></tr>'}
+      </tbody>
+    </table>
+    <div class="prod-hdr" style="margin-top:16px">LANÇAMENTOS FINANCEIROS (${ts.length})</div>
+    <table class="prod-table">
+      <thead><tr><th>DATA</th><th>TIPO</th><th>CATEGORIA</th><th>DESCRIÇÃO</th><th class="r">VALOR</th></tr></thead>
+      <tbody>
+        ${ts.length?ts.sort((a,b)=>b.data.localeCompare(a.data)).map(t=>`<tr><td>${fmtDate(t.data)}</td><td>${t.tipo==='entrada'?'Entrada':'Saída'}</td><td>${t.cat}</td><td>${t.desc}</td><td class="r" style="color:${t.tipo==='entrada'?'#3D8A5E':'#B84040'};font-weight:700">${t.tipo==='entrada'?'+':'-'}${fmt(t.val)}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#8A7E6E;padding:16px">Nenhum lançamento no período</td></tr>'}
+      </tbody>
+    </table>`
+    +docFoot('',false))
   w.document.close();setTimeout(()=>w.print(),400)
 }
 
