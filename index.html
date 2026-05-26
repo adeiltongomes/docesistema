@@ -118,6 +118,12 @@ tbody td{padding:11px 13px;color:var(--txt)}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--cream2);border-radius:3px}
 @media(max-width:768px){:root{--sw:0px}.sidebar{transform:translateX(-260px);width:260px!important}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.stats-grid{grid-template-columns:1fr 1fr}.dgrid{grid-template-columns:1fr}.dgrid .full{grid-column:auto}.frow{grid-template-columns:1fr}.frow.t3{grid-template-columns:1fr}}
+.anexo-box{border:1.5px dashed var(--cream2);border-radius:8px;padding:10px 12px;background:var(--cream);transition:border-color .15s;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.anexo-box:hover{border-color:var(--cara)}
+.anexo-has{display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap}
+.anexo-thumb{height:56px;width:72px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--cream2);flex-shrink:0}
+.anexo-name{flex:1;font-size:12px;color:var(--txt2);word-break:break-all;min-width:0}
+.anexo-clip{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--cara);margin-left:5px;vertical-align:middle;cursor:default}
 </style>
 </head>
 <body>
@@ -228,7 +234,7 @@ const PTITLES={dashboard:'Dashboard',vendas:'Vendas',orcamentos:'Orçamentos',cl
 const DB={get:k=>JSON.parse(localStorage.getItem(k)||'[]'),set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),clear:k=>localStorage.removeItem(k)}
 
 // ===== STATE =====
-let page='dashboard', tempItems=[], editId=null, estoqueTab='produto', finTab='todos'
+let page='dashboard', tempItems=[], editId=null, tempAnexo=null, estoqueTab='produto', finTab='todos'
 
 // ===== UTILS =====
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -239,6 +245,61 @@ function today(){return new Date().toISOString().split('T')[0]}
 function thisMonth(){return today().slice(0,7)}
 function clienteNome(id){const c=DB.get(S.CLIENTES).find(x=>x.id===id);return c?c.nome:'(Cliente não encontrado)'}
 function prodNome(id){const p=DB.get(S.PRODUTOS).find(x=>x.id===id);return p?p.nome:'-'}
+
+// ===== ANEXO (comprovante / nota fiscal) =====
+function _anexoInner(a){
+  if(a&&a.data)return`<div class="anexo-has">
+    ${a.type&&a.type.startsWith('image/')?`<img src="${a.data}" class="anexo-thumb" onclick="verAnexo()" title="Clique para ampliar">`:
+    `<svg width="28" height="28" fill="none" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--cara)"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.8"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="1.8"/></svg>`}
+    <span class="anexo-name">${a.name||'arquivo'}</span>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <button type="button" class="btn btn-s btn-sm" onclick="verAnexo()">Ver</button>
+      <button type="button" class="btn btn-d btn-sm" onclick="removeAnexo()">Remover</button>
+    </div>
+  </div>`
+  return`<div style="display:flex;align-items:center;gap:8px">
+    <button type="button" class="btn btn-s btn-sm" onclick="document.getElementById('anexoInput').click()">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Selecionar arquivo
+    </button>
+    <span style="font-size:11px;color:var(--txt3)">JPG, PNG ou PDF — máx. 2 MB</span>
+  </div>`
+}
+function anexoWidget(existing, lbl){
+  lbl=lbl||'Anexar Arquivo'
+  return`<div class="fg"><label>${lbl}</label>
+    <input type="file" id="anexoInput" accept="image/*,.pdf" style="display:none" onchange="handleAnexo(this)">
+    <div id="anexoBox" class="anexo-box">${_anexoInner(existing)}</div>
+  </div>`
+}
+function handleAnexo(input){
+  const file=input.files[0];if(!file)return
+  if(file.size>2*1024*1024){toast('Arquivo muito grande (máx. 2 MB)','err');input.value='';return}
+  const reader=new FileReader()
+  reader.onload=e=>{
+    tempAnexo={name:file.name,type:file.type,data:e.target.result}
+    const box=document.getElementById('anexoBox')
+    if(box)box.innerHTML=_anexoInner(tempAnexo)
+  }
+  reader.readAsDataURL(file)
+}
+function removeAnexo(){
+  tempAnexo=null
+  const box=document.getElementById('anexoBox')
+  if(box)box.innerHTML=_anexoInner(null)
+}
+function verAnexo(a){
+  const src=a||tempAnexo;if(!src||!src.data)return
+  if(src.type&&src.type.startsWith('image/')){
+    const w=window.open('','_blank')
+    w.document.write(`<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${src.data}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`)
+    w.document.close()
+  }else{
+    const el=document.createElement('a');el.href=src.data;el.download=src.name||'arquivo';document.body.appendChild(el);el.click();document.body.removeChild(el)
+  }
+}
+function verComprovante(id){const v=DB.get(S.VENDAS).find(x=>x.id===id);if(v&&v.comprovante)verAnexo(v.comprovante)}
+function verNotaCompra(id){const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(c&&c.notaAnexo)verAnexo(c.notaAnexo)}
 
 // ===== SAMPLE DATA =====
 function initSample(){
@@ -436,7 +497,7 @@ function renderVendasTable(){
       <td style="color:var(--txt3)">${v.itens.length} ite${v.itens.length>1?'ns':'m'}</td>
       <td>${v.pgto}</td>
       <td><strong>${fmt(v.totalF)}</strong>${v.desc>0?`<br><small style="color:var(--txt3)">desc: ${fmt(v.desc)}</small>`:''}</td>
-      <td>${v.status==='pago'?'<span class="bdg bdg-g">Pago</span>':'<span class="bdg bdg-y">Pendente</span>'}</td>
+      <td>${v.status==='pago'?'<span class="bdg bdg-g">Pago</span>':'<span class="bdg bdg-y">Pendente</span>'}${v.comprovante?`<span class="anexo-clip" title="Comprovante anexado"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`:''}</td>
       <td style="white-space:nowrap">
         <button class="btn-ic" style="margin-right:4px" title="Ver" onclick="verVenda('${v.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" title="Editar" onclick="editVenda('${v.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -447,8 +508,7 @@ function renderVendasTable(){
 }
 
 function novaVenda(){
-  tempItems=[{nome:'',qtd:1,pu:0,sub:0}]
-  editId=null
+  tempItems=[{nome:'',qtd:1,pu:0,sub:0}];editId=null;tempAnexo=null
   const clis=DB.get(S.CLIENTES)
   const prods=DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo)
   openModal('Nova Venda',`
@@ -465,7 +525,8 @@ function novaVenda(){
     <div style="margin-top:12px" id="vTotals"></div>
     <div class="fg" style="margin-top:10px"><label>Desconto (R$)</label><input type="number" id="vDesc" value="0" min="0" oninput="calcVendaTotals()"></div>
     <div class="fg"><label>Nome dos Noivos / Evento</label><input id="vNoivos" placeholder="Ex: Ana &amp; Carlos — Casamento 15/06"></div>
-    <div class="fg"><label>Observações</label><textarea id="vObs" placeholder="Observações..."></textarea></div>`,
+    <div class="fg"><label>Observações</label><textarea id="vObs" placeholder="Observações..."></textarea></div>
+    ${anexoWidget(null,'Comprovante de Pagamento')}`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarVenda()">Salvar Venda</button>`,true)
   renderVItens(prods)
   calcVendaTotals()
@@ -513,7 +574,7 @@ function calcVendaTotals(){
 
 function editVenda(id){
   const v=DB.get(S.VENDAS).find(x=>x.id===id);if(!v)return
-  editId=id;tempItems=JSON.parse(JSON.stringify(v.itens))
+  editId=id;tempItems=JSON.parse(JSON.stringify(v.itens));tempAnexo=v.comprovante||null
   const clis=DB.get(S.CLIENTES);const prods=DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo)
   const pgtos=['Pix','Dinheiro','Cartão','Transferência']
   openModal('Editar Venda',`
@@ -527,7 +588,8 @@ function editVenda(id){
     <div style="margin-top:12px" id="vTotals"></div>
     <div class="fg" style="margin-top:10px"><label>Desconto (R$)</label><input type="number" id="vDesc" value="${v.desc||0}" min="0" oninput="calcVendaTotals()"></div>
     <div class="fg"><label>Nome dos Noivos / Evento</label><input id="vNoivos" value="${v.noivos||''}" placeholder="Ex: Ana &amp; Carlos — Casamento 15/06"></div>
-    <div class="fg"><label>Observações</label><textarea id="vObs" placeholder="Observações...">${v.obs||''}</textarea></div>`,
+    <div class="fg"><label>Observações</label><textarea id="vObs" placeholder="Observações...">${v.obs||''}</textarea></div>
+    ${anexoWidget(v.comprovante||null,'Comprovante de Pagamento')}`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarVenda()">Atualizar Venda</button>`,true)
   renderVItens(prods);calcVendaTotals()
 }
@@ -548,13 +610,13 @@ function salvarVenda(){
   const vendas=DB.get(S.VENDAS);const trans=DB.get(S.TRANS)
   if(editId){
     const idx=vendas.findIndex(x=>x.id===editId)
-    if(idx>=0)vendas[idx]={id:editId,cliId,data,itens,total,desc,totalF,pgto,status,noivos,obs}
+    if(idx>=0)vendas[idx]={id:editId,cliId,data,itens,total,desc,totalF,pgto,status,noivos,obs,comprovante:tempAnexo}
     DB.set(S.VENDAS,vendas)
     const ti=trans.findIndex(x=>x.ref===editId)
     if(ti>=0){trans[ti]={...trans[ti],val:totalF,data,pgto,desc:`Venda - ${clienteNome(cliId)}`};DB.set(S.TRANS,trans)}
     closeModal();toast('Venda atualizada!','ok')
   }else{
-    const venda={id:genId(),cliId,data,itens,total,desc,totalF,pgto,status,noivos,obs}
+    const venda={id:genId(),cliId,data,itens,total,desc,totalF,pgto,status,noivos,obs,comprovante:tempAnexo}
     vendas.push(venda);DB.set(S.VENDAS,vendas)
     trans.push({id:genId(),tipo:'entrada',cat:'Venda',desc:`Venda - ${clienteNome(cliId)}`,val:totalF,data,pgto,ref:venda.id})
     DB.set(S.TRANS,trans)
@@ -565,6 +627,7 @@ function salvarVenda(){
 
 function verVenda(id){
   const v=DB.get(S.VENDAS).find(x=>x.id===id);if(!v)return
+  const cmp=v.comprovante
   openModal('Detalhe da Venda',`
     <div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center">
       <div><strong style="font-size:15px">${clienteNome(v.cliId)}</strong><div style="font-size:12px;color:var(--txt3)">${fmtDate(v.data)} · ${v.pgto}</div></div>
@@ -578,7 +641,12 @@ function verVenda(id){
       ${v.desc>0?`<div class="trow"><span>Desconto</span><span style="color:var(--bad)">- ${fmt(v.desc)}</span></div>`:''}
       <div class="trow bold"><span>Total</span><span>${fmt(v.totalF)}</span></div>
     </div>
-    ${v.obs?`<div style="margin-top:10px;font-size:13px;color:var(--txt3)">Obs: ${v.obs}</div>`:''}`,
+    ${v.obs?`<div style="margin-top:10px;font-size:13px;color:var(--txt3)">Obs: ${v.obs}</div>`:''}
+    ${cmp?`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--cream2)">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Comprovante de Pagamento</div>
+      ${cmp.type&&cmp.type.startsWith('image/')?`<img src="${cmp.data}" style="max-width:100%;max-height:200px;object-fit:contain;border-radius:6px;border:1px solid var(--cream2);cursor:pointer" onclick="verComprovante('${v.id}')">`:
+      `<button class="btn btn-s btn-sm" onclick="verComprovante('${v.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.8"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="1.8"/></svg> ${cmp.name||'Baixar arquivo'}</button>`}
+    </div>`:''}`,
     `<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-s" onclick="imprimirVenda('${v.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Imprimir</button>`)
 }
 
@@ -955,7 +1023,8 @@ function renderCmpTable(){
     ${rows.map(c=>`<tr>
       <td>${fmtDate(c.data)}</td><td><strong>${c.forn}</strong></td>
       <td style="color:var(--txt3)">${c.itens.length} item(s)</td>
-      <td>${c.nf||'—'}</td><td>${c.pgto}</td><td><strong>${fmt(c.total)}</strong></td>
+      <td>${c.nf||'—'}${c.notaAnexo?`<span class="anexo-clip" title="Nota anexada"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`:''}</td>
+      <td>${c.pgto}</td><td><strong>${fmt(c.total)}</strong></td>
       <td>
         <button class="btn-ic" style="margin-right:4px" onclick="verCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" onclick="editCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -966,13 +1035,13 @@ function renderCmpTable(){
 }
 
 function novaCompra(){
-  tempItems=[{pId:'',nome:'',qtd:1,pu:0,sub:0}];editId=null
+  tempItems=[{pId:'',nome:'',qtd:1,pu:0,sub:0}];editId=null;tempAnexo=null
   const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
   openModal('Registrar Compra',`
     <div class="frow"><div class="fg"><label>Fornecedor *</label><input id="cForn" placeholder="Nome do fornecedor"></div>
     <div class="fg"><label>Data</label><input type="date" id="cData" value="${today()}"></div></div>
     <div class="frow"><div class="fg"><label>Forma de Pagamento</label><select id="cPgto"><option>Pix</option><option>Boleto</option><option>Dinheiro</option><option>Cartão</option><option>Transferência</option></select></div>
-    <div class="fg"><label>Nota Fiscal</label><input id="cNf" placeholder="NF-000"></div></div>
+    <div class="fg"><label>Nota Fiscal (número)</label><input id="cNf" placeholder="NF-000"></div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
     <div class="items-tbl">
       <div class="items-hdr"><span>Ingrediente</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div>
@@ -980,7 +1049,8 @@ function novaCompra(){
     </div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
     <div style="margin-top:12px" id="cTotals"></div>
-    <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="cObs" placeholder="Observações..."></textarea></div>`,
+    <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="cObs" placeholder="Observações..."></textarea></div>
+    ${anexoWidget(null,'Nota de Compra / NF (arquivo)')}`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarCompra()">Salvar Compra</button>`,true)
   renderCItens(ings);calcCmpTotals()
 }
@@ -1017,19 +1087,20 @@ function calcCmpTotals(){
 }
 function editCompra(id){
   const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
-  editId=id;tempItems=JSON.parse(JSON.stringify(c.itens))
+  editId=id;tempItems=JSON.parse(JSON.stringify(c.itens));tempAnexo=c.notaAnexo||null
   const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
   const pgtos=['Pix','Boleto','Dinheiro','Cartão','Transferência']
   openModal('Editar Compra',`
     <div class="frow"><div class="fg"><label>Fornecedor *</label><input id="cForn" value="${c.forn||''}" placeholder="Nome do fornecedor"></div>
     <div class="fg"><label>Data</label><input type="date" id="cData" value="${c.data}"></div></div>
     <div class="frow"><div class="fg"><label>Forma de Pagamento</label><select id="cPgto">${pgtos.map(p=>`<option ${p===c.pgto?'selected':''}>${p}</option>`).join('')}</select></div>
-    <div class="fg"><label>Nota Fiscal</label><input id="cNf" value="${c.nf||''}" placeholder="NF-000"></div></div>
+    <div class="fg"><label>Nota Fiscal (número)</label><input id="cNf" value="${c.nf||''}" placeholder="NF-000"></div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
     <div class="items-tbl"><div class="items-hdr"><span>Ingrediente</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div><div id="cItens"></div></div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
     <div style="margin-top:12px" id="cTotals"></div>
-    <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="cObs" placeholder="Observações...">${c.obs||''}</textarea></div>`,
+    <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="cObs" placeholder="Observações...">${c.obs||''}</textarea></div>
+    ${anexoWidget(c.notaAnexo||null,'Nota de Compra / NF (arquivo)')}`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarCompra()">Atualizar Compra</button>`,true)
   renderCItens(ings);calcCmpTotals()
 }
@@ -1048,7 +1119,7 @@ function salvarCompra(){
     // reverter estoque da compra antiga
     if(old)old.itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque=Math.max(0,prods[i].estoque-it.qtd)}})
     const idx=cmps.findIndex(x=>x.id===editId)
-    cmps[idx]={id:editId,forn:forn.trim(),data,itens,total,pgto,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value}
+    cmps[idx]={id:editId,forn:forn.trim(),data,itens,total,pgto,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     DB.set(S.COMPRAS,cmps)
     // aplicar novo estoque
     itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
@@ -1057,7 +1128,7 @@ function salvarCompra(){
     if(ti>=0){trans[ti]={...trans[ti],val:total,data,pgto,desc:forn.trim()};DB.set(S.TRANS,trans)}
     closeModal();toast('Compra atualizada! Estoque ajustado.','ok')
   }else{
-    const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value}
+    const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     cmps.push(cmp);DB.set(S.COMPRAS,cmps)
     itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
     DB.set(S.PRODUTOS,prods)
@@ -1069,13 +1140,19 @@ function salvarCompra(){
 }
 function verCompra(id){
   const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
+  const na=c.notaAnexo
   openModal('Detalhe da Compra',`
     <div style="margin-bottom:12px;display:flex;justify-content:space-between"><div><strong>${c.forn}</strong><div style="font-size:12px;color:var(--txt3)">${fmtDate(c.data)} · ${c.pgto}${c.nf?' · '+c.nf:''}</div></div></div>
     <div class="tc"><table><thead><tr><th>Item</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead><tbody>
       ${c.itens.map(i=>`<tr><td>${i.nome||prodNome(i.pId)}</td><td>${i.qtd}</td><td>${fmt(i.pu)}</td><td>${fmt(i.sub)}</td></tr>`).join('')}
     </tbody></table></div>
     <div style="margin-top:12px" class="totbox"><div class="trow bold"><span>Total</span><span>${fmt(c.total)}</span></div></div>
-    ${c.obs?`<div style="margin-top:8px;font-size:13px;color:var(--txt3)">Obs: ${c.obs}</div>`:''}`,
+    ${c.obs?`<div style="margin-top:8px;font-size:13px;color:var(--txt3)">Obs: ${c.obs}</div>`:''}
+    ${na?`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--cream2)">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nota de Compra / NF</div>
+      ${na.type&&na.type.startsWith('image/')?`<img src="${na.data}" style="max-width:100%;max-height:200px;object-fit:contain;border-radius:6px;border:1px solid var(--cream2);cursor:pointer" onclick="verNotaCompra('${c.id}')">`:
+      `<button class="btn btn-s btn-sm" onclick="verNotaCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.8"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="1.8"/></svg> ${na.name||'Baixar arquivo'}</button>`}
+    </div>`:''}`,
     `<button class="btn btn-s" onclick="closeModal()">Fechar</button>`)
 }
 function excluirCompra(id){
