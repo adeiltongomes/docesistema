@@ -420,6 +420,7 @@ function renderVendasTable(){
       <td>${v.status==='pago'?'<span class="bdg bdg-g">Pago</span>':'<span class="bdg bdg-y">Pendente</span>'}</td>
       <td style="white-space:nowrap">
         <button class="btn-ic" style="margin-right:4px" title="Ver" onclick="verVenda('${v.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
+        <button class="btn-ic" style="margin-right:4px" title="Editar" onclick="editVenda('${v.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic btn-d" title="Excluir" onclick="excluirVenda('${v.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </td>
     </tr>`).join('')}
@@ -477,7 +478,9 @@ function selectProdVenda(i,pId){
 function updateItemVenda(i,f,v){
   tempItems[i][f]=parseFloat(v)||0
   tempItems[i].sub=(tempItems[i].qtd||1)*(tempItems[i].pu||0)
-  renderVItens(DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo));calcVendaTotals()
+  const rows=document.querySelectorAll('#vItens .items-row')
+  if(rows[i]){const sp=rows[i].querySelector('span');if(sp)sp.textContent=fmt(tempItems[i].sub||0)}
+  calcVendaTotals()
 }
 function addItemVenda(){tempItems.push({pId:'',nome:'',qtd:1,pu:0,sub:0});renderVItens(DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo));calcVendaTotals()}
 function removeItemVenda(i){if(tempItems.length>1)tempItems.splice(i,1);else tempItems=[{pId:'',nome:'',qtd:1,pu:0,sub:0}];renderVItens(DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo));calcVendaTotals()}
@@ -486,6 +489,26 @@ function calcVendaTotals(){
   const desc=parseFloat((document.getElementById('vDesc')||{}).value)||0
   const el=document.getElementById('vTotals');if(!el)return
   el.innerHTML=`<div class="totbox"><div class="trow"><span>Subtotal</span><span>${fmt(total)}</span></div><div class="trow"><span>Desconto</span><span style="color:var(--bad)">- ${fmt(desc)}</span></div><div class="trow bold"><span>Total</span><span>${fmt(total-desc)}</span></div></div>`
+}
+
+function editVenda(id){
+  const v=DB.get(S.VENDAS).find(x=>x.id===id);if(!v)return
+  editId=id;tempItems=JSON.parse(JSON.stringify(v.itens))
+  const clis=DB.get(S.CLIENTES);const prods=DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo)
+  const pgtos=['Pix','Dinheiro','Cartão','Transferência']
+  openModal('Editar Venda',`
+    <div class="frow"><div class="fg"><label>Cliente</label><select id="vCli"><option value="">Selecione...</option>${clis.map(c=>`<option value="${c.id}" ${c.id===v.cliId?'selected':''}>${c.nome}</option>`).join('')}</select></div>
+    <div class="fg"><label>Data</label><input type="date" id="vData" value="${v.data}"></div></div>
+    <div class="frow"><div class="fg"><label>Forma de Pagamento</label><select id="vPgto">${pgtos.map(p=>`<option ${p===v.pgto?'selected':''}>${p}</option>`).join('')}</select></div>
+    <div class="fg"><label>Status</label><select id="vStatus"><option value="pago" ${v.status==='pago'?'selected':''}>Pago</option><option value="pendente" ${v.status==='pendente'?'selected':''}>Pendente</option></select></div></div>
+    <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens</div>
+    <div class="items-tbl"><div class="items-hdr"><span>Produto/Descrição</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div><div id="vItens"></div></div>
+    <button class="btn btn-s btn-sm" onclick="addItemVenda()">+ Adicionar item</button>
+    <div style="margin-top:12px" id="vTotals"></div>
+    <div class="fg" style="margin-top:10px"><label>Desconto (R$)</label><input type="number" id="vDesc" value="${v.desc||0}" min="0" oninput="calcVendaTotals()"></div>
+    <div class="fg"><label>Observações</label><textarea id="vObs" placeholder="Observações...">${v.obs||''}</textarea></div>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarVenda()">Atualizar Venda</button>`,true)
+  renderVItens(prods);calcVendaTotals()
 }
 
 function salvarVenda(){
@@ -497,13 +520,25 @@ function salvarVenda(){
   const total=itens.reduce((a,x)=>a+x.sub,0)
   const desc=parseFloat((document.getElementById('vDesc')||{}).value)||0
   const totalF=total-desc
-  const venda={id:genId(),cliId,data,itens,total,desc,totalF,pgto:(document.getElementById('vPgto')||{}).value,status:(document.getElementById('vStatus')||{}).value,obs:(document.getElementById('vObs')||{}).value}
-  const vendas=DB.get(S.VENDAS);vendas.push(venda);DB.set(S.VENDAS,vendas)
-  // add transaction
-  const trans=DB.get(S.TRANS)
-  trans.push({id:genId(),tipo:'entrada',cat:'Venda',desc:`Venda - ${clienteNome(cliId)}`,val:totalF,data,pgto:venda.pgto,ref:venda.id})
-  DB.set(S.TRANS,trans)
-  closeModal();toast('Venda registrada!','ok');render('vendas')
+  const pgto=(document.getElementById('vPgto')||{}).value
+  const status=(document.getElementById('vStatus')||{}).value
+  const obs=(document.getElementById('vObs')||{}).value
+  const vendas=DB.get(S.VENDAS);const trans=DB.get(S.TRANS)
+  if(editId){
+    const idx=vendas.findIndex(x=>x.id===editId)
+    if(idx>=0)vendas[idx]={id:editId,cliId,data,itens,total,desc,totalF,pgto,status,obs}
+    DB.set(S.VENDAS,vendas)
+    const ti=trans.findIndex(x=>x.ref===editId)
+    if(ti>=0){trans[ti]={...trans[ti],val:totalF,data,pgto,desc:`Venda - ${clienteNome(cliId)}`};DB.set(S.TRANS,trans)}
+    closeModal();toast('Venda atualizada!','ok')
+  }else{
+    const venda={id:genId(),cliId,data,itens,total,desc,totalF,pgto,status,obs}
+    vendas.push(venda);DB.set(S.VENDAS,vendas)
+    trans.push({id:genId(),tipo:'entrada',cat:'Venda',desc:`Venda - ${clienteNome(cliId)}`,val:totalF,data,pgto,ref:venda.id})
+    DB.set(S.TRANS,trans)
+    closeModal();toast('Venda registrada!','ok')
+  }
+  render('vendas')
 }
 
 function verVenda(id){
@@ -568,6 +603,7 @@ function renderOrcTable(){
       <td><span class="bdg ${bdg[o.status]||'bdg-gr'}">${o.status.charAt(0).toUpperCase()+o.status.slice(1)}</span></td>
       <td style="white-space:nowrap">
         <button class="btn-ic" style="margin-right:4px" onclick="verOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
+        <button class="btn-ic" style="margin-right:4px" onclick="editOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         ${o.status==='pendente'?`<button class="btn-ic btn-ok" style="margin-right:4px" onclick="statusOrc('${o.id}','aprovado')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic btn-d" onclick="statusOrc('${o.id}','recusado')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`:''}
       </td>
@@ -637,15 +673,40 @@ function calcOrcTotals(){
   const el=document.getElementById('oTotals');if(!el)return
   el.innerHTML=`<div class="totbox"><div class="trow"><span>Subtotal</span><span>${fmt(total)}</span></div><div class="trow"><span>Desconto</span><span style="color:var(--bad)">- ${fmt(desc)}</span></div><div class="trow bold"><span>Total</span><span>${fmt(total-desc)}</span></div></div>`
 }
+function editOrc(id){
+  const o=DB.get(S.ORCAMENTOS).find(x=>x.id===id);if(!o)return
+  editId=id;tempItems=JSON.parse(JSON.stringify(o.itens))
+  const clis=DB.get(S.CLIENTES)
+  openModal('Editar Orçamento',`
+    <div class="frow"><div class="fg"><label>Cliente</label><select id="oCli"><option value="">Selecione...</option>${clis.map(c=>`<option value="${c.id}" ${c.id===o.cliId?'selected':''}>${c.nome}</option>`).join('')}</select></div>
+    <div class="fg"><label>Data</label><input type="date" id="oData" value="${o.data}"></div></div>
+    <div class="frow"><div class="fg"><label>Validade</label><input type="date" id="oValid" value="${o.validade||''}"></div>
+    <div class="fg"><label>Desconto (R$)</label><input type="number" id="oDesc" value="${o.desc||0}" min="0" oninput="calcOrcTotals()"></div></div>
+    <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens do Orçamento</div>
+    <div class="items-tbl"><div class="items-hdr"><span>Produto</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div><div id="oItens"></div></div>
+    <button class="btn btn-s btn-sm" onclick="addOrcItem()">+ Item</button>
+    <div style="margin-top:12px" id="oTotals"></div>
+    <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="oObs" placeholder="Detalhes do orçamento...">${o.obs||''}</textarea></div>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarOrc()">Atualizar Orçamento</button>`,true)
+  renderOItens();calcOrcTotals()
+}
+
 function salvarOrc(){
   const cliId=(document.getElementById('oCli')||{}).value;const data=(document.getElementById('oData')||{}).value
   if(!cliId||!data){toast('Selecione cliente e data','err');return}
   const itens=tempItems.filter(x=>x.nome||x.sub>0)
   if(!itens.length){toast('Adicione ao menos um item','err');return}
   const total=itens.reduce((a,x)=>a+x.sub,0);const desc=parseFloat((document.getElementById('oDesc')||{}).value)||0
-  const orc={id:genId(),cliId,data,validade:(document.getElementById('oValid')||{}).value,itens,total,desc,totalF:total-desc,status:'pendente',obs:(document.getElementById('oObs')||{}).value}
-  const orcs=DB.get(S.ORCAMENTOS);orcs.push(orc);DB.set(S.ORCAMENTOS,orcs)
-  closeModal();toast('Orçamento salvo!','ok');render('orcamentos')
+  const orcs=DB.get(S.ORCAMENTOS)
+  if(editId){
+    const idx=orcs.findIndex(x=>x.id===editId)
+    if(idx>=0)orcs[idx]={...orcs[idx],cliId,data,validade:(document.getElementById('oValid')||{}).value,itens,total,desc,totalF:total-desc,obs:(document.getElementById('oObs')||{}).value}
+    DB.set(S.ORCAMENTOS,orcs);closeModal();toast('Orçamento atualizado!','ok')
+  }else{
+    const orc={id:genId(),cliId,data,validade:(document.getElementById('oValid')||{}).value,itens,total,desc,totalF:total-desc,status:'pendente',obs:(document.getElementById('oObs')||{}).value}
+    orcs.push(orc);DB.set(S.ORCAMENTOS,orcs);closeModal();toast('Orçamento salvo!','ok')
+  }
+  render('orcamentos')
 }
 function statusOrc(id,status){
   const orcs=DB.get(S.ORCAMENTOS);const i=orcs.findIndex(x=>x.id===id);if(i<0)return
@@ -863,6 +924,7 @@ function renderCmpTable(){
       <td>${c.nf||'—'}</td><td>${c.pgto}</td><td><strong>${fmt(c.total)}</strong></td>
       <td>
         <button class="btn-ic" style="margin-right:4px" onclick="verCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
+        <button class="btn-ic" style="margin-right:4px" onclick="editCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic btn-d" onclick="excluirCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </td>
     </tr>`).join('')}
@@ -919,6 +981,25 @@ function calcCmpTotals(){
   const el=document.getElementById('cTotals');if(!el)return
   el.innerHTML=`<div class="totbox"><div class="trow bold"><span>Total da Compra</span><span>${fmt(total)}</span></div></div>`
 }
+function editCompra(id){
+  const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
+  editId=id;tempItems=JSON.parse(JSON.stringify(c.itens))
+  const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
+  const pgtos=['Pix','Boleto','Dinheiro','Cartão','Transferência']
+  openModal('Editar Compra',`
+    <div class="frow"><div class="fg"><label>Fornecedor *</label><input id="cForn" value="${c.forn||''}" placeholder="Nome do fornecedor"></div>
+    <div class="fg"><label>Data</label><input type="date" id="cData" value="${c.data}"></div></div>
+    <div class="frow"><div class="fg"><label>Forma de Pagamento</label><select id="cPgto">${pgtos.map(p=>`<option ${p===c.pgto?'selected':''}>${p}</option>`).join('')}</select></div>
+    <div class="fg"><label>Nota Fiscal</label><input id="cNf" value="${c.nf||''}" placeholder="NF-000"></div></div>
+    <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
+    <div class="items-tbl"><div class="items-hdr"><span>Ingrediente</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div><div id="cItens"></div></div>
+    <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
+    <div style="margin-top:12px" id="cTotals"></div>
+    <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="cObs" placeholder="Observações...">${c.obs||''}</textarea></div>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarCompra()">Atualizar Compra</button>`,true)
+  renderCItens(ings);calcCmpTotals()
+}
+
 function salvarCompra(){
   const forn=(document.getElementById('cForn')||{}).value||''
   if(!forn.trim()){toast('Informe o fornecedor','err');return}
@@ -926,17 +1007,31 @@ function salvarCompra(){
   if(!itens.length){toast('Adicione ao menos um item','err');return}
   const total=itens.reduce((a,x)=>a+x.sub,0)
   const data=(document.getElementById('cData')||{}).value
-  const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto:(document.getElementById('cPgto')||{}).value,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value}
-  const cmps=DB.get(S.COMPRAS);cmps.push(cmp);DB.set(S.COMPRAS,cmps)
-  // update stock
-  const prods=DB.get(S.PRODUTOS)
-  itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
-  DB.set(S.PRODUTOS,prods)
-  // add transaction
-  const trans=DB.get(S.TRANS)
-  trans.push({id:genId(),tipo:'saida',cat:'Compra de insumos',desc:`${forn}`,val:total,data,pgto:cmp.pgto,ref:cmp.id})
-  DB.set(S.TRANS,trans)
-  closeModal();toast('Compra registrada! Estoque atualizado.','ok');render('compras')
+  const pgto=(document.getElementById('cPgto')||{}).value
+  const cmps=DB.get(S.COMPRAS);const prods=DB.get(S.PRODUTOS);const trans=DB.get(S.TRANS)
+  if(editId){
+    const old=cmps.find(x=>x.id===editId)
+    // reverter estoque da compra antiga
+    if(old)old.itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque=Math.max(0,prods[i].estoque-it.qtd)}})
+    const idx=cmps.findIndex(x=>x.id===editId)
+    cmps[idx]={id:editId,forn:forn.trim(),data,itens,total,pgto,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value}
+    DB.set(S.COMPRAS,cmps)
+    // aplicar novo estoque
+    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
+    DB.set(S.PRODUTOS,prods)
+    const ti=trans.findIndex(x=>x.ref===editId)
+    if(ti>=0){trans[ti]={...trans[ti],val:total,data,pgto,desc:forn.trim()};DB.set(S.TRANS,trans)}
+    closeModal();toast('Compra atualizada! Estoque ajustado.','ok')
+  }else{
+    const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value}
+    cmps.push(cmp);DB.set(S.COMPRAS,cmps)
+    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
+    DB.set(S.PRODUTOS,prods)
+    trans.push({id:genId(),tipo:'saida',cat:'Compra de insumos',desc:forn.trim(),val:total,data,pgto,ref:cmp.id})
+    DB.set(S.TRANS,trans)
+    closeModal();toast('Compra registrada! Estoque atualizado.','ok')
+  }
+  render('compras')
 }
 function verCompra(id){
   const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
