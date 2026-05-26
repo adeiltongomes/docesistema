@@ -808,11 +808,11 @@ function editCli(id){
 function cliForm(c){
   return`
   <div class="frow"><div class="fg"><label>Nome Completo *</label><input id="cNome" value="${c.nome||''}" placeholder="Nome do cliente"></div>
-  <div class="fg"><label>CPF</label><input id="cCpf" value="${c.cpf||''}" placeholder="000.000.000-00"></div></div>
+  <div class="fg"><label>Cpf</label><input id="cCpf" value="${c.cpf||''}" placeholder="000.000.000-00"></div></div>
   <div class="frow"><div class="fg"><label>Telefone</label><input id="cFone" value="${c.fone||''}" placeholder="(11) 99999-9999"></div>
   <div class="fg"><label>Email</label><input id="cEmail" type="email" value="${c.email||''}" placeholder="email@exemplo.com"></div></div>
   <div class="fg"><label>Endereço</label><input id="cEnd" value="${c.end||''}" placeholder="Rua, número, bairro"></div>
-  <div class="frow"><div class="fg"><label>CEP</label><input id="cCep" value="${c.cep||''}" placeholder="00000-000"></div>
+  <div class="frow"><div class="fg"><label>Cep</label><input id="cCep" value="${c.cep||''}" placeholder="00000-000"></div>
   <div class="fg"><label>Cidade</label><input id="cCidade" value="${c.cidade||''}" placeholder="São Paulo"></div></div>
   <div class="fg"><label>Observações</label><textarea id="cObs" placeholder="Alergias, preferências...">${c.obs||''}</textarea></div>`
 }
@@ -1435,10 +1435,10 @@ function noivosBlock(noivos){
 }
 function cliBlock(cli){
   const rows=[]
-  rows.push(`<tr><th>Nome:</th><td>${cli.nome||'—'}</td><th>CPF:</th><td>${cli.cpf||'—'}</td></tr>`)
+  rows.push(`<tr><th>Nome:</th><td>${cli.nome||'—'}</td><th>Cpf:</th><td>${cli.cpf||'—'}</td></tr>`)
   rows.push(`<tr><th>Telefone:</th><td>${cli.fone||'—'}</td><th>E-mail:</th><td>${cli.email||'—'}</td></tr>`)
   if(cli.end)rows.push(`<tr><th>Endereço:</th><td colspan="3">${cli.end}</td></tr>`)
-  if(cli.cep||cli.cidade)rows.push(`<tr><th>CEP:</th><td>${cli.cep||'—'}</td><th>Cidade:</th><td>${cli.cidade||'—'}</td></tr>`)
+  if(cli.cep||cli.cidade)rows.push(`<tr><th>Cep:</th><td>${cli.cep||'—'}</td><th>Cidade:</th><td>${cli.cidade||'—'}</td></tr>`)
   if(cli.obs)rows.push(`<tr><th>Observação:</th><td colspan="3">${cli.obs}</td></tr>`)
   return`<div class="section"><div class="cli-table-wrap"><div class="cli-table-title">Dados do Cliente</div><table class="cli-table">${rows.join('')}</table></div></div>`
 }
