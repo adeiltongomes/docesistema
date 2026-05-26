@@ -358,6 +358,15 @@ function today(){return new Date().toISOString().split('T')[0]}
 function thisMonth(){return today().slice(0,7)}
 function clienteNome(id){const c=DB.get(S.CLIENTES).find(x=>x.id===id);return c?c.nome:'(Cliente não encontrado)'}
 function prodNome(id){const p=DB.get(S.PRODUTOS).find(x=>x.id===id);return p?p.nome:'-'}
+// Converte quantidade entre unidades compatíveis (g↔kg, ml↔L). Retorna null se incompatível.
+function converterUnidade(qtd,from,to){
+  if(!from||!to||from===to)return qtd
+  const W={'mg':.001,'g':1,'kg':1000}
+  const V={'ml':1,'L':1000}
+  if(W[from]!==undefined&&W[to]!==undefined)return qtd*W[from]/W[to]
+  if(V[from]!==undefined&&V[to]!==undefined)return qtd*V[from]/V[to]
+  return null
+}
 
 // ===== ANEXO (comprovante / nota fiscal) =====
 function _anexoInner(a){
@@ -1176,7 +1185,7 @@ function renderCmpTable(){
 }
 
 function novaCompra(){
-  tempItems=[{pId:'',nome:'',qtd:1,pu:0,sub:0}];editId=null;tempAnexo=null
+  tempItems=[{pId:'',nome:'',qtd:1,und:'',pu:0,sub:0}];editId=null;tempAnexo=null
   const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
   openModal('Registrar Compra',`
     <div class="frow"><div class="fg"><label>Fornecedor *</label><input id="cForn" placeholder="Nome do fornecedor"></div>
@@ -1202,7 +1211,7 @@ function novaCompra(){
     </div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
     <div class="items-tbl">
-      <div class="items-hdr"><span>Ingrediente</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div>
+      <div class="items-hdr" style="grid-template-columns:3fr 70px 70px 1.2fr 1fr 36px"><span>Ingrediente</span><span>Qtd</span><span>Und</span><span>Preço/Und</span><span>Subtotal</span><span></span></div>
       <div id="cItens"></div>
     </div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
@@ -1216,8 +1225,9 @@ function novaCompra(){
 function renderCItens(ings){
   const el=document.getElementById('cItens');if(!el)return
   if(!ings)ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
+  const CMP_UNIDS=['g','kg','ml','L','un','cx','pct','kg','mg']
   el.innerHTML=tempItems.map((it,i)=>`
-    <div class="items-row">
+    <div class="items-row" style="grid-template-columns:3fr 70px 70px 1.2fr 1fr 36px">
       <select onchange="selectIngCmp(${i},this.value)" style="padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
         <option value="">Selecionar...</option>
         ${ings.map(p=>`<option value="${p.id}" ${it.pId===p.id?'selected':''}>${p.nome}</option>`).join('')}
@@ -1225,6 +1235,10 @@ function renderCItens(ings){
         <option value="__novo__">＋ Novo ingrediente...</option>
       </select>
       <input type="number" value="${it.qtd||1}" min="0.01" step="0.01" oninput="updateCmpItem(${i},'qtd',this.value)" onblur="renderCItens()">
+      <select onchange="tempItems[${i}].und=this.value" style="padding:5px 6px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%">
+        <option value="">—</option>
+        ${['g','kg','mg','ml','L','un','cx','pct'].map(u=>`<option value="${u}" ${it.und===u?'selected':''}>${u}</option>`).join('')}
+      </select>
       <input type="number" value="${it.pu||0}" min="0" step="0.01" oninput="updateCmpItem(${i},'pu',this.value)" onblur="renderCItens()">
       <span id="cSub_${i}" style="font-size:12px;color:var(--txt2);font-weight:600">${fmt(it.sub||0)}</span>
       <button class="btn-ic btn-d" onclick="removeCmpItem(${i})" style="padding:4px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
@@ -1254,7 +1268,7 @@ function selectIngCmp(i,pId){
   }
   tempItems[i]._novoMode=false
   const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente')
-  if(pId&&pId!=='_free'){const p=ings.find(x=>x.id===pId);if(p){tempItems[i].pId=pId;tempItems[i].nome=p.nome}}
+  if(pId&&pId!=='_free'){const p=ings.find(x=>x.id===pId);if(p){tempItems[i].pId=pId;tempItems[i].nome=p.nome;if(!tempItems[i].und)tempItems[i].und=p.un||''}}
   else{tempItems[i].pId=pId||'';tempItems[i].nome=''}
   renderCItens();calcCmpTotals()
 }
@@ -1285,8 +1299,8 @@ function updateCmpItem(i,f,v){
   if(span)span.textContent=fmt(tempItems[i].sub)
   calcCmpTotals()
 }
-function addCmpItem(){tempItems.push({pId:'',nome:'',qtd:1,pu:0,sub:0});renderCItens();calcCmpTotals()}
-function removeCmpItem(i){if(tempItems.length>1)tempItems.splice(i,1);else tempItems=[{pId:'',nome:'',qtd:1,pu:0,sub:0}];renderCItens();calcCmpTotals()}
+function addCmpItem(){tempItems.push({pId:'',nome:'',qtd:1,und:'',pu:0,sub:0});renderCItens();calcCmpTotals()}
+function removeCmpItem(i){if(tempItems.length>1)tempItems.splice(i,1);else tempItems=[{pId:'',nome:'',qtd:1,und:'',pu:0,sub:0}];renderCItens();calcCmpTotals()}
 function calcCmpTotals(){
   const total=tempItems.reduce((a,x)=>a+(x.sub||0),0)
   const parc=parseInt((document.getElementById('cParc')||{}).value||'1')||1
@@ -1320,7 +1334,7 @@ function editCompra(id){
       <div id="cParcVal" style="padding:9px 12px;background:var(--cream);border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-weight:700;color:var(--cara)">${(c.parcelas||1)>1?fmt(c.total/(c.parcelas||1)):'—'}</div>
     </div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
-    <div class="items-tbl"><div class="items-hdr"><span>Ingrediente</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div><div id="cItens"></div></div>
+    <div class="items-tbl"><div class="items-hdr" style="grid-template-columns:3fr 70px 70px 1.2fr 1fr 36px"><span>Ingrediente</span><span>Qtd</span><span>Und</span><span>Preço/Und</span><span>Subtotal</span><span></span></div><div id="cItens"></div></div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
     <div style="margin-top:12px" id="cTotals"></div>
     <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="cObs" placeholder="Observações...">${c.obs||''}</textarea></div>
@@ -1347,8 +1361,8 @@ function salvarCompra(){
     const idx=cmps.findIndex(x=>x.id===editId)
     cmps[idx]={id:editId,forn:forn.trim(),data,itens,total,pgto,parcelas,valorParcela,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     DB.set(S.COMPRAS,cmps)
-    // aplicar novo estoque e atualizar custo unitário
-    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){prods[i].estoque+=it.qtd;if(it.pu>0)prods[i].custo=it.pu}}})
+    // aplicar novo estoque e atualizar custo unitário com conversão de unidade
+    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){const qtdConv=it.und?converterUnidade(it.qtd,it.und,prods[i].un)??it.qtd:it.qtd;prods[i].estoque+=qtdConv;if(it.pu>0){const W={'mg':.001,'g':1,'kg':1000},V={'ml':1,'L':1000};const pf=W[it.und]||V[it.und]||1,sf=W[prods[i].un]||V[prods[i].un]||1;prods[i].custo=it.pu*(sf/pf)}}}})
     DB.set(S.PRODUTOS,prods)
     const ti=trans.findIndex(x=>x.ref===editId)
     if(ti>=0){trans[ti]={...trans[ti],val:total,data,pgto,desc:forn.trim()};DB.set(S.TRANS,trans)}
@@ -1356,7 +1370,7 @@ function salvarCompra(){
   }else{
     const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto,parcelas,valorParcela,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     cmps.push(cmp);DB.set(S.COMPRAS,cmps)
-    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){prods[i].estoque+=it.qtd;if(it.pu>0)prods[i].custo=it.pu}}})
+    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){const qtdConv=it.und?converterUnidade(it.qtd,it.und,prods[i].un)??it.qtd:it.qtd;prods[i].estoque+=qtdConv;if(it.pu>0){const W={'mg':.001,'g':1,'kg':1000},V={'ml':1,'L':1000};const pf=W[it.und]||V[it.und]||1,sf=W[prods[i].un]||V[prods[i].un]||1;prods[i].custo=it.pu*(sf/pf)}}}})
     DB.set(S.PRODUTOS,prods)
     trans.push({id:genId(),tipo:'saida',cat:'Compra de insumos',desc:forn.trim(),val:total,data,pgto,ref:cmp.id})
     DB.set(S.TRANS,trans)
@@ -1892,17 +1906,13 @@ function renderIngredientes(){
   const el=document.getElementById('ingList');if(!el)return
   const estoqueIngs=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo!==false)
   const stl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%'
-  const vinculado='padding:6px 10px;border:1.5px solid var(--cara);border-radius:7px;font-size:12px;font-weight:700;color:var(--cara);background:rgba(184,145,42,.08);display:flex;align-items:center;justify-content:center;white-space:nowrap'
   el.innerHTML=tempIng.map((ing,i)=>{
-    const linked=ing.pId&&ing.pId!=='_custom'
     return`
     <div style="display:grid;grid-template-columns:70px 90px 1fr 30px;gap:6px;align-items:center;margin-bottom:5px">
       <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value" style="${stl}">
-      ${linked
-        ?`<div style="${vinculado}" title="Unidade definida pelo cadastro do estoque">${ing.und}</div>`
-        :`<select onchange="tempIng[${i}].und=this.value" style="${stl}">
-            ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
-          </select>`}
+      <select onchange="tempIng[${i}].und=this.value" style="${stl}">
+        ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
+      </select>
       ${ing.pId==='_custom'
         ?`<div style="display:flex;gap:4px;align-items:center">
             <button onclick="selectIngRec(${i},'')" title="Voltar à lista" style="padding:5px 8px;border:1.5px solid var(--cream2);border-radius:7px;background:var(--cream);font-size:11px;cursor:pointer;color:var(--txt2);font-family:inherit;white-space:nowrap;flex-shrink:0">← Lista</button>
@@ -2070,8 +2080,9 @@ function atualizarPreviewProd(id,lotes){
       ?prods.find(p=>p.id===ing.pId)
       :prods.find(p=>p.nome.toLowerCase().trim()===(ing.nome||'').toLowerCase().trim())
     const estoqueAtual=prod!=null?prod.estoque:null
-    const estoqueApos=estoqueAtual!=null?estoqueAtual-qtdTotal:null
-    const custo=prod&&prod.custo>0?qtdTotal*prod.custo:null
+    const qtdConv=prod?converterUnidade(qtdTotal,ing.und,prod.un):null
+    const estoqueApos=estoqueAtual!=null&&qtdConv!=null?estoqueAtual-qtdConv:null
+    const custo=prod&&prod.custo>0&&qtdConv!=null?qtdConv*prod.custo:null
     if(custo!=null)custoTotal+=custo
     let status,cor
     if(prod==null){status='⚠ Não cadastrado';cor='var(--warn)';temProblema=true}
@@ -2109,7 +2120,7 @@ function confirmarProducao(id){
     const i=ing.pId&&ing.pId!=='_custom'
       ?prods.findIndex(p=>p.id===ing.pId)
       :prods.findIndex(p=>p.tipo==='ingrediente'&&p.nome.toLowerCase().trim()===(ing.nome||'').toLowerCase().trim())
-    if(i>=0){prods[i].estoque=Math.max(0,prods[i].estoque-qtdTotal);descontados++}
+    if(i>=0){const qtdConv=converterUnidade(qtdTotal,ing.und,prods[i].un);prods[i].estoque=Math.max(0,prods[i].estoque-(qtdConv!=null?qtdConv:qtdTotal));descontados++}
   })
   DB.set(S.PRODUTOS,prods)
   closeModal()
@@ -2147,7 +2158,8 @@ function verReceita(id){
       let totalCusto=0;let temCusto=false
       const rows=r.ingredientes.map(i=>{
         const prod=i.pId&&i.pId!=='_custom'?allProds.find(p=>p.id===i.pId):allProds.find(p=>p.nome.toLowerCase().trim()===(i.nome||'').toLowerCase().trim())
-        const custo=prod&&prod.custo>0?(parseFloat(i.qtd)||0)*prod.custo:null
+        const qtdConv=prod?converterUnidade(parseFloat(i.qtd)||0,i.und,prod.un):null
+        const custo=prod&&prod.custo>0&&qtdConv!=null?qtdConv*prod.custo:null
         if(custo!=null){totalCusto+=custo;temCusto=true}
         return`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--cream2);font-size:13px;align-items:center">
           <span style="color:var(--cara);font-weight:600;min-width:80px">${i.qtd} ${i.und}</span>
