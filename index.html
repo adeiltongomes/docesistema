@@ -175,6 +175,14 @@ tbody td{padding:11px 13px;color:var(--txt)}
 .anexo-thumb{height:56px;width:72px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--cream2);flex-shrink:0}
 .anexo-name{flex:1;font-size:12px;color:var(--txt2);word-break:break-all;min-width:0}
 .anexo-clip{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--cara);margin-left:5px;vertical-align:middle;cursor:default}
+.audio-widget{background:var(--cream);border:1.5px solid var(--cream2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.audio-btn-rec{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;background:var(--cara);color:#fff;border:none;border-radius:20px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s}
+.audio-btn-rec:hover{background:var(--cara2)}
+.audio-btn-stop{background:var(--bad)}
+.audio-btn-stop:hover{background:#c94040}
+.audio-timer{font-size:11px;font-weight:700;color:var(--bad);font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.audio-pulse{width:8px;height:8px;background:var(--bad);border-radius:50%;display:inline-block;animation:pulse-rec .9s ease-in-out infinite}
+@keyframes pulse-rec{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 .orc-st-sel{border:none;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;font-family:inherit}
 .rec-card{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--cream2);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .15s}
 .rec-card:hover{box-shadow:var(--shm)}
@@ -334,6 +342,7 @@ const DB={get:k=>JSON.parse(localStorage.getItem(k)||'[]'),set:(k,v)=>localStora
 
 // ===== STATE =====
 let page='dashboard', tempItems=[], editId=null, tempAnexo=null, estoqueTab='produto', finTab='todos'
+let tempAudioPrep=null, mediaRecorder=null, audioChunks=[], recordingTimer=null, recordingSec=0
 
 // ===== UTILS =====
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -1363,7 +1372,7 @@ function openModal(title,body,footer,lg){
   if(lg)box.classList.add('modal-lg');else box.classList.remove('modal-lg')
   document.getElementById('modalOv').classList.add('open')
 }
-function closeModal(){document.getElementById('modalOv').classList.remove('open')}
+function closeModal(){document.getElementById('modalOv').classList.remove('open');pararGravacao()}
 function handleOvClick(e){if(e.target===document.getElementById('modalOv'))closeModal()}
 
 // ===== TOAST =====
@@ -1669,17 +1678,17 @@ function renderReceitasGrid(){
 
 let tempIng=[]
 function novaReceita(){
-  editId=null;tempIng=[{qtd:'',und:'g',nome:''}];tempAnexo=null
+  editId=null;tempIng=[{qtd:'',und:'g',nome:''}];tempAnexo=null;tempAudioPrep=null;pararGravacao()
   openModal('Nova Receita',receitaForm({}),
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarReceita()">Salvar Receita</button>`,true)
-  renderIngredientes()
+  renderIngredientes();renderAudioWidget()
 }
 function editReceita(id){
   const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
-  editId=id;tempIng=r.ingredientes&&r.ingredientes.length?JSON.parse(JSON.stringify(r.ingredientes)):[{qtd:'',und:'g',nome:''}];tempAnexo=r.foto||null
+  editId=id;tempIng=r.ingredientes&&r.ingredientes.length?JSON.parse(JSON.stringify(r.ingredientes)):[{qtd:'',und:'g',nome:''}];tempAnexo=r.foto||null;tempAudioPrep=r.audioPrep||null;pararGravacao()
   openModal('Editar Receita',receitaForm(r),
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarReceita()">Atualizar Receita</button>`,true)
-  renderIngredientes()
+  renderIngredientes();renderAudioWidget()
 }
 function receitaForm(r){
   return`
@@ -1703,7 +1712,10 @@ function receitaForm(r){
   <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Ingredientes</div>
   <div id="ingList" style="margin-bottom:8px"></div>
   <button class="btn btn-s btn-sm" onclick="addIngrediente()" style="margin-bottom:14px">+ Ingrediente</button>
-  <div class="fg"><label>Modo de Preparo *</label><textarea id="rPreparo" style="min-height:120px" placeholder="Descreva o passo a passo da receita...">${r.preparo||''}</textarea></div>
+  <div class="fg"><label>Modo de Preparo *</label><textarea id="rPreparo" style="min-height:120px" placeholder="Descreva o passo a passo da receita...">${r.preparo||''}</textarea>
+    <div style="margin-top:8px;font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Ou grave um áudio</div>
+    <div id="audioWidgetBox"></div>
+  </div>
   <div class="fg"><label>Dicas e Observações</label><textarea id="rDicas" placeholder="Dicas, substituições, variações...">${r.dicas||''}</textarea></div>
   <div class="fg"><label>Link de Vídeo (YouTube, Instagram, etc.)</label><input id="rVideo" type="url" value="${r.video||''}" placeholder="https://www.youtube.com/watch?v=..."></div>
   ${anexoWidget(r.foto||null,'Foto da Receita')}
@@ -1724,6 +1736,84 @@ function renderIngredientes(){
 function addIngrediente(){tempIng.push({qtd:'',und:'g',nome:''});renderIngredientes()}
 function remIngrediente(i){if(tempIng.length>1)tempIng.splice(i,1);else tempIng=[{qtd:'',und:'g',nome:''}];renderIngredientes()}
 
+// ===== AUDIO PREPARO =====
+function renderAudioWidget(){
+  const el=document.getElementById('audioWidgetBox');if(!el)return
+  if(mediaRecorder&&mediaRecorder.state==='recording'){
+    el.innerHTML=`<div class="audio-widget">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="audio-pulse"></span>
+        <span class="audio-timer" id="audioTimer">00:00</span>
+        <span style="font-size:12px;color:var(--txt2)">Gravando áudio...</span>
+        <button class="audio-btn-rec audio-btn-stop" onclick="pararGravacao()">⏹ Parar</button>
+      </div>
+    </div>`
+  } else if(tempAudioPrep){
+    el.innerHTML=`<div class="audio-widget">
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:4px">Áudio gravado</div>
+      <audio controls src="${tempAudioPrep.data}" style="width:100%;height:36px;border-radius:6px"></audio>
+      <div style="display:flex;gap:7px;margin-top:4px">
+        <button class="audio-btn-rec" onclick="toggleGravacao()">🎤 Regravar</button>
+        <button class="btn btn-s btn-sm" onclick="removerAudioPrep()">✕ Remover</button>
+      </div>
+    </div>`
+  } else {
+    el.innerHTML=`<div class="audio-widget">
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:6px">Grave um áudio com o modo de preparo em voz</div>
+      <button class="audio-btn-rec" onclick="toggleGravacao()">🎤 Gravar Áudio</button>
+    </div>`
+  }
+}
+function toggleGravacao(){
+  if(mediaRecorder&&mediaRecorder.state==='recording'){pararGravacao();return}
+  startGravacao()
+}
+async function startGravacao(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true})
+    audioChunks=[];recordingSec=0
+    const mimeType=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':
+                   MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/ogg'
+    mediaRecorder=new MediaRecorder(stream,{mimeType})
+    mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data)}
+    mediaRecorder.onstop=()=>{
+      stream.getTracks().forEach(t=>t.stop())
+      clearInterval(recordingTimer)
+      const blob=new Blob(audioChunks,{type:mimeType})
+      if(blob.size>4*1024*1024){toast('Áudio muito grande (máx. 4 MB)','err');tempAudioPrep=null;renderAudioWidget();return}
+      const reader=new FileReader()
+      reader.onload=ev=>{
+        tempAudioPrep={data:ev.target.result,type:mimeType}
+        renderAudioWidget()
+        toast('Áudio gravado!','ok')
+      }
+      reader.readAsDataURL(blob)
+    }
+    mediaRecorder.start(250)
+    recordingTimer=setInterval(()=>{
+      recordingSec++
+      const el=document.getElementById('audioTimer')
+      if(el){const m=String(Math.floor(recordingSec/60)).padStart(2,'0');const s=String(recordingSec%60).padStart(2,'0');el.textContent=m+':'+s}
+      if(recordingSec>=300){pararGravacao();toast('Limite de 5 min atingido','warn')}
+    },1000)
+    renderAudioWidget()
+  }catch(err){
+    toast('Permissão de microfone negada ou não disponível','err')
+  }
+}
+function pararGravacao(){
+  if(mediaRecorder&&mediaRecorder.state==='recording'){
+    mediaRecorder.stop()
+    mediaRecorder=null
+    clearInterval(recordingTimer)
+  }
+}
+function removerAudioPrep(){
+  pararGravacao()
+  tempAudioPrep=null
+  renderAudioWidget()
+}
+
 function salvarReceita(){
   const nome=(document.getElementById('rNome')||{}).value||''
   if(!nome.trim()){toast('Informe o nome da receita','err');return}
@@ -1741,6 +1831,7 @@ function salvarReceita(){
     dicas:(document.getElementById('rDicas')||{}).value||'',
     video:v('rVideo'),
     foto:tempAnexo,
+    audioPrep:tempAudioPrep,
     dt:today()
   }
   const recs=DB.get(S.RECEITAS)
@@ -1785,9 +1876,10 @@ function verReceita(id){
     <div style="background:var(--cream);border-radius:8px;padding:10px 14px;margin-bottom:14px">
       ${r.ingredientes.map(i=>`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--cream2);font-size:13px"><span style="color:var(--cara);font-weight:600;min-width:80px">${i.qtd} ${i.und}</span><span>${i.nome}</span></div>`).join('')}
     </div>`:''}
-    ${r.preparo?`
+    ${r.preparo||r.audioPrep?`
     <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Modo de Preparo</div>
-    <div style="font-size:13px;color:var(--txt);line-height:1.7;white-space:pre-wrap;margin-bottom:14px">${r.preparo}</div>`:''}
+    ${r.preparo?`<div style="font-size:13px;color:var(--txt);line-height:1.7;white-space:pre-wrap;margin-bottom:10px">${r.preparo}</div>`:''}
+    ${r.audioPrep?`<div style="background:var(--cream);border-radius:8px;padding:10px 12px;margin-bottom:14px"><div style="font-size:11px;color:var(--txt3);margin-bottom:6px;font-weight:600">🎤 Áudio do Modo de Preparo</div><audio controls src="${r.audioPrep.data}" style="width:100%;height:36px"></audio></div>`:'<div style="margin-bottom:14px"></div>'}`:''}
     ${r.dicas?`
     <div style="background:#fff8f0;border-left:3px solid var(--cara);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;color:var(--cara);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Dicas</div>
