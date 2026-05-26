@@ -464,6 +464,7 @@ function novaVenda(){
     <button class="btn btn-s btn-sm" onclick="addItemVenda()">+ Adicionar item</button>
     <div style="margin-top:12px" id="vTotals"></div>
     <div class="fg" style="margin-top:10px"><label>Desconto (R$)</label><input type="number" id="vDesc" value="0" min="0" oninput="calcVendaTotals()"></div>
+    <div class="fg"><label>Nome dos Noivos / Evento</label><input id="vNoivos" placeholder="Ex: Ana &amp; Carlos — Casamento 15/06"></div>
     <div class="fg"><label>Observações</label><textarea id="vObs" placeholder="Observações..."></textarea></div>`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarVenda()">Salvar Venda</button>`,true)
   renderVItens(prods)
@@ -525,6 +526,7 @@ function editVenda(id){
     <button class="btn btn-s btn-sm" onclick="addItemVenda()">+ Adicionar item</button>
     <div style="margin-top:12px" id="vTotals"></div>
     <div class="fg" style="margin-top:10px"><label>Desconto (R$)</label><input type="number" id="vDesc" value="${v.desc||0}" min="0" oninput="calcVendaTotals()"></div>
+    <div class="fg"><label>Nome dos Noivos / Evento</label><input id="vNoivos" value="${v.noivos||''}" placeholder="Ex: Ana &amp; Carlos — Casamento 15/06"></div>
     <div class="fg"><label>Observações</label><textarea id="vObs" placeholder="Observações...">${v.obs||''}</textarea></div>`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarVenda()">Atualizar Venda</button>`,true)
   renderVItens(prods);calcVendaTotals()
@@ -542,16 +544,17 @@ function salvarVenda(){
   const pgto=(document.getElementById('vPgto')||{}).value
   const status=(document.getElementById('vStatus')||{}).value
   const obs=(document.getElementById('vObs')||{}).value
+  const noivos=v('vNoivos')
   const vendas=DB.get(S.VENDAS);const trans=DB.get(S.TRANS)
   if(editId){
     const idx=vendas.findIndex(x=>x.id===editId)
-    if(idx>=0)vendas[idx]={id:editId,cliId,data,itens,total,desc,totalF,pgto,status,obs}
+    if(idx>=0)vendas[idx]={id:editId,cliId,data,itens,total,desc,totalF,pgto,status,noivos,obs}
     DB.set(S.VENDAS,vendas)
     const ti=trans.findIndex(x=>x.ref===editId)
     if(ti>=0){trans[ti]={...trans[ti],val:totalF,data,pgto,desc:`Venda - ${clienteNome(cliId)}`};DB.set(S.TRANS,trans)}
     closeModal();toast('Venda atualizada!','ok')
   }else{
-    const venda={id:genId(),cliId,data,itens,total,desc,totalF,pgto,status,obs}
+    const venda={id:genId(),cliId,data,itens,total,desc,totalF,pgto,status,noivos,obs}
     vendas.push(venda);DB.set(S.VENDAS,vendas)
     trans.push({id:genId(),tipo:'entrada',cat:'Venda',desc:`Venda - ${clienteNome(cliId)}`,val:totalF,data,pgto,ref:venda.id})
     DB.set(S.TRANS,trans)
@@ -647,7 +650,8 @@ function novoOrc(){
     </div>
     <button class="btn btn-s btn-sm" onclick="addOrcItem()">+ Item</button>
     <div style="margin-top:12px" id="oTotals"></div>
-    <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="oObs" placeholder="Detalhes do orçamento..."></textarea></div>`,
+    <div class="fg" style="margin-top:10px"><label>Nome dos Noivos / Evento</label><input id="oNoivos" placeholder="Ex: Ana &amp; Carlos — Casamento 15/06"></div>
+    <div class="fg" style="margin-top:8px"><label>Observações</label><textarea id="oObs" placeholder="Detalhes do orçamento..."></textarea></div>`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarOrc()">Salvar Orçamento</button>`,true)
   renderOItens();calcOrcTotals()
 }
@@ -707,7 +711,8 @@ function editOrc(id){
     <div class="items-tbl"><div class="items-hdr"><span>Produto</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div><div id="oItens"></div></div>
     <button class="btn btn-s btn-sm" onclick="addOrcItem()">+ Item</button>
     <div style="margin-top:12px" id="oTotals"></div>
-    <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="oObs" placeholder="Detalhes do orçamento...">${o.obs||''}</textarea></div>`,
+    <div class="fg" style="margin-top:10px"><label>Nome dos Noivos / Evento</label><input id="oNoivos" value="${o.noivos||''}" placeholder="Ex: Ana &amp; Carlos — Casamento 15/06"></div>
+    <div class="fg" style="margin-top:8px"><label>Observações</label><textarea id="oObs" placeholder="Detalhes do orçamento...">${o.obs||''}</textarea></div>`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarOrc()">Atualizar Orçamento</button>`,true)
   renderOItens();calcOrcTotals()
 }
@@ -721,10 +726,10 @@ function salvarOrc(){
   const orcs=DB.get(S.ORCAMENTOS)
   if(editId){
     const idx=orcs.findIndex(x=>x.id===editId)
-    if(idx>=0)orcs[idx]={...orcs[idx],cliId,data,validade:(document.getElementById('oValid')||{}).value,itens,total,desc,totalF:total-desc,obs:(document.getElementById('oObs')||{}).value}
+    if(idx>=0)orcs[idx]={...orcs[idx],cliId,data,validade:(document.getElementById('oValid')||{}).value,itens,total,desc,totalF:total-desc,noivos:v('oNoivos'),obs:(document.getElementById('oObs')||{}).value}
     DB.set(S.ORCAMENTOS,orcs);closeModal();toast('Orçamento atualizado!','ok')
   }else{
-    const orc={id:genId(),cliId,data,validade:(document.getElementById('oValid')||{}).value,itens,total,desc,totalF:total-desc,status:'pendente',obs:(document.getElementById('oObs')||{}).value}
+    const orc={id:genId(),cliId,data,validade:(document.getElementById('oValid')||{}).value,itens,total,desc,totalF:total-desc,status:'pendente',noivos:v('oNoivos'),obs:(document.getElementById('oObs')||{}).value}
     orcs.push(orc);DB.set(S.ORCAMENTOS,orcs);closeModal();toast('Orçamento salvo!','ok')
   }
   render('orcamentos')
@@ -1259,7 +1264,7 @@ function autoGerarOS(){
   const all=DB.get(S.OS)
   pendentes.forEach(o=>{
     const num=(all.length?Math.max(...all.map(x=>x.num)):0)+1
-    all.push({id:genId(),num,orcId:o.id,cliId:o.cliId,data:today(),prazo:'',itens:JSON.parse(JSON.stringify(o.itens)),total:o.totalF,status:'aberta',obs:o.obs||'',responsavel:''})
+    all.push({id:genId(),num,orcId:o.id,cliId:o.cliId,data:today(),prazo:'',itens:JSON.parse(JSON.stringify(o.itens)),total:o.totalF,status:'aberta',noivos:o.noivos||'',obs:o.obs||'',responsavel:''})
   })
   DB.set(S.OS,all)
   return pendentes.length
@@ -1329,7 +1334,7 @@ function gerarOS(orcId){
   if(orcIdsComOS.has(orcId)){toast('OS já gerada para este orçamento','warn');navigate('os');return}
   const all=DB.get(S.OS)
   const num=(all.length?Math.max(...all.map(x=>x.num)):0)+1
-  all.push({id:genId(),num,orcId,cliId:o.cliId,data:today(),prazo:'',itens:JSON.parse(JSON.stringify(o.itens)),total:o.totalF,status:'aberta',obs:o.obs||'',responsavel:''})
+  all.push({id:genId(),num,orcId,cliId:o.cliId,data:today(),prazo:'',itens:JSON.parse(JSON.stringify(o.itens)),total:o.totalF,status:'aberta',noivos:o.noivos||'',obs:o.obs||'',responsavel:''})
   DB.set(S.OS,all);toast(`OS #${String(num).padStart(3,'0')} criada!`,'ok');navigate('os')
 }
 function updateStatusOS(id,status){
@@ -1344,6 +1349,7 @@ function verOS(id){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div><strong style="font-size:15px">${clienteNome(os.cliId)}</strong><div style="font-size:12px;color:var(--txt3)">Criada em ${fmtDate(os.data)}</div></div>
     </div>
+    ${os.noivos?`<div class="fg" style="margin-bottom:8px"><label>Noivos / Evento</label><input value="${os.noivos}" readonly style="background:var(--cream2);font-weight:600"></div>`:''}
     <div class="frow"><div class="fg"><label>Prazo de Entrega</label><input type="date" id="osPrazo" value="${os.prazo||''}"></div>
     <div class="fg"><label>Responsável</label><input id="osResp" value="${os.responsavel||''}" placeholder="Nome do responsável"></div></div>
     <div class="fg"><label>Observações</label><textarea id="osObs" placeholder="Anotações internas...">${os.obs||''}</textarea></div>
@@ -1423,6 +1429,10 @@ function docHead(titulo){
   <div class="doc-title">${titulo}</div>
   <div style="display:flex;justify-content:flex-end;margin-bottom:16px"><div style="text-align:right">`
 }
+function noivosBlock(noivos){
+  if(!noivos)return''
+  return`<div style="margin:0 0 16px;padding:10px 16px;background:#fff8f0;border-left:4px solid #C4724A;border-radius:0 6px 6px 0;font-size:13px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#9A7A68;display:block;margin-bottom:3px">Noivos / Evento</span><strong style="font-size:15px;color:#1A0E08">${noivos}</strong></div>`
+}
 function cliBlock(cli){
   const rows=[]
   rows.push(`<tr><th>Nome:</th><td>${cli.nome||'—'}</td><th>CPF:</th><td>${cli.cpf||'—'}</td></tr>`)
@@ -1447,7 +1457,7 @@ function imprimirOrc(id){
   w.document.write(docHead('ORÇAMENTO')+
     `<div class="doc-num">#${id.slice(-4).toUpperCase()}</div>
     <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(o.data)}<br>Válido até: ${fmtDate(o.validade)}</div></div></div>
-    ${cliBlock(cli)}
+    ${cliBlock(cli)}${noivosBlock(o.noivos)}
     <div class="section"><div class="section-title">Itens</div>
     <table><thead><tr><th>Produto / Descrição</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
     ${o.itens.map(it=>`<tr><td>${it.nome||it.desc||''}</td><td style="text-align:center">${it.qtd}</td><td style="text-align:right">${fmt(it.pu)}</td><td style="text-align:right">${fmt(it.sub)}</td></tr>`).join('')}
@@ -1464,7 +1474,7 @@ function imprimirVenda(id){
   w.document.write(docHead('RECIBO DE VENDA')+
     `<div class="doc-num">#${id.slice(-4).toUpperCase()}</div>
     <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(vd.data)}<br>Pgto: ${vd.pgto}</div></div></div>
-    ${cliBlock(cli)}
+    ${cliBlock(cli)}${noivosBlock(vd.noivos)}
     <div class="section"><div class="section-title">Itens</div>
     <table><thead><tr><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
     ${vd.itens.map(it=>`<tr><td>${it.nome}</td><td style="text-align:center">${it.qtd}</td><td style="text-align:right">${fmt(it.pu)}</td><td style="text-align:right">${fmt(it.sub)}</td></tr>`).join('')}
@@ -1483,7 +1493,7 @@ function imprimirOS(id){
   w.document.write(docHead('ORDEM DE SERVIÇO')+
     `<div class="doc-num">OS #${String(os.num).padStart(3,'0')}</div>
     <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(os.data)}${os.prazo?'<br>Prazo: '+fmtDate(os.prazo):''}</div></div></div>
-    ${cliBlock(cli)}
+    ${cliBlock(cli)}${noivosBlock(os.noivos)}
     ${os.responsavel?`<div class="section"><div class="section-title">Responsável</div><div style="font-size:13px">${os.responsavel}</div></div>`:''}
     <div class="section"><div class="section-title">Itens / Serviços</div>
     <table><thead><tr><th>Item</th><th style="text-align:center">Qtd</th><th style="text-align:right">Valor</th></tr></thead><tbody>
