@@ -576,7 +576,7 @@ function renderOrcTable(){
 }
 
 function novoOrc(){
-  tempItems=[{nome:'',desc:'',qtd:1,pu:0,sub:0}];editId=null
+  tempItems=[{pId:'',nome:'',qtd:1,pu:0,sub:0}];editId=null
   const clis=DB.get(S.CLIENTES)
   openModal('Novo Orçamento',`
     <div class="frow"><div class="fg"><label>Cliente</label><select id="oCli"><option value="">Selecione...</option>${clis.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')}</select></div>
@@ -585,7 +585,7 @@ function novoOrc(){
     <div class="fg"><label>Desconto (R$)</label><input type="number" id="oDesc" value="0" min="0" oninput="calcOrcTotals()"></div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens do Orçamento</div>
     <div class="items-tbl">
-      <div class="items-hdr"><span>Item / Descrição</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div>
+      <div class="items-hdr"><span>Produto</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div>
       <div id="oItens"></div>
     </div>
     <button class="btn btn-s btn-sm" onclick="addOrcItem()">+ Item</button>
