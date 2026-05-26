@@ -1199,22 +1199,65 @@ function renderCItens(ings){
   if(!ings)ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
   el.innerHTML=tempItems.map((it,i)=>`
     <div class="items-row">
-      <select oninput="selectIngCmp(${i},this.value)" style="padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
+      <select onchange="selectIngCmp(${i},this.value)" style="padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
         <option value="">Selecionar...</option>
         ${ings.map(p=>`<option value="${p.id}" ${it.pId===p.id?'selected':''}>${p.nome}</option>`).join('')}
         <option value="_free" ${it.pId==='_free'?'selected':''}>Outro (livre)</option>
+        <option value="__novo__">＋ Novo ingrediente...</option>
       </select>
       <input type="number" value="${it.qtd||1}" min="0.01" step="0.01" oninput="updateCmpItem(${i},'qtd',this.value)">
       <input type="number" value="${it.pu||0}" min="0" step="0.01" oninput="updateCmpItem(${i},'pu',this.value)">
       <span style="font-size:12px;color:var(--txt2);font-weight:600">${fmt(it.sub||0)}</span>
       <button class="btn-ic btn-d" onclick="removeCmpItem(${i})" style="padding:4px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    </div>`).join('')
+    </div>
+    ${it._novoMode?`<div style="background:var(--cream);border:1.5px solid var(--cara);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--cara);text-transform:uppercase;letter-spacing:.5px">Novo Ingrediente</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <input id="cNovoIngNome_${i}" placeholder="Nome do ingrediente *" style="flex:2;min-width:130px;padding:7px 10px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarNovoIngCmp(${i})}">
+        <select id="cNovoIngUnd_${i}" style="flex:1;min-width:80px;padding:7px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)">
+          ${REC_UNIDS.map(u=>`<option value="${u}">${u}</option>`).join('')}
+        </select>
+        <input id="cNovoIngCat_${i}" placeholder="Categoria (opcional)" style="flex:2;min-width:110px;padding:7px 10px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)">
+      </div>
+      <div style="display:flex;gap:6px">
+        <button type="button" class="btn btn-p btn-sm" onclick="salvarNovoIngCmp(${i})">Criar ingrediente</button>
+        <button type="button" class="btn btn-s btn-sm" onclick="cancelarNovoIngCmp(${i})">✕ Cancelar</button>
+      </div>
+    </div>`:''}
+  `).join('')
+  // foca no input do novo ingrediente se modo ativo
+  tempItems.forEach((it,i)=>{if(it._novoMode){const inp=document.getElementById(`cNovoIngNome_${i}`);if(inp)inp.focus()}})
 }
 function selectIngCmp(i,pId){
+  if(pId==='__novo__'){
+    tempItems[i]._novoMode=true;tempItems[i].pId='';tempItems[i].nome=''
+    renderCItens();return
+  }
+  tempItems[i]._novoMode=false
   const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente')
   if(pId&&pId!=='_free'){const p=ings.find(x=>x.id===pId);if(p){tempItems[i].pId=pId;tempItems[i].nome=p.nome}}
   else{tempItems[i].pId=pId||'';tempItems[i].nome=''}
   renderCItens();calcCmpTotals()
+}
+function salvarNovoIngCmp(i){
+  const nome=((document.getElementById(`cNovoIngNome_${i}`)||{}).value||'').trim()
+  if(!nome){toast('Informe o nome do ingrediente','err');return}
+  const und=(document.getElementById(`cNovoIngUnd_${i}`)||{}).value||'g'
+  const cat=((document.getElementById(`cNovoIngCat_${i}`)||{}).value||'').trim()
+  const prods=DB.get(S.PRODUTOS)
+  const existing=prods.find(p=>p.nome.toLowerCase()===nome.toLowerCase()&&p.tipo==='ingrediente')
+  const id=existing?existing.id:genId()
+  if(!existing){
+    prods.push({id,nome,tipo:'ingrediente',und,cat,estoque:0,minimo:0,ativo:true,dt:today()})
+    DB.set(S.PRODUTOS,prods)
+  }
+  tempItems[i]={...tempItems[i],pId:id,nome,_novoMode:false}
+  renderCItens();calcCmpTotals()
+  toast(`Ingrediente "${nome}" criado e selecionado!`,'ok')
+}
+function cancelarNovoIngCmp(i){
+  tempItems[i]._novoMode=false;tempItems[i].pId='';tempItems[i].nome=''
+  renderCItens()
 }
 function updateCmpItem(i,f,v){tempItems[i][f]=parseFloat(v)||0;tempItems[i].sub=(tempItems[i].qtd||1)*(tempItems[i].pu||0);renderCItens();calcCmpTotals()}
 function addCmpItem(){tempItems.push({pId:'',nome:'',qtd:1,pu:0,sub:0});renderCItens();calcCmpTotals()}
