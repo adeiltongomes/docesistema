@@ -1207,8 +1207,14 @@ function renderSlogoInfo(){
   const e=getEmpresa()
   const el=document.getElementById('slogoInfo');if(!el)return
   const nome=e.fantasia||e.nome||''
-  const linhas=[nome,e.fone||''].filter(Boolean)
-  el.innerHTML=linhas.map((l,i)=>`<div style="font-size:${i===0?'11px':'10px'};color:rgba(255,255,255,${i===0?'.7':'.35'});margin-top:${i===0?'4px':'1px'};font-weight:${i===0?'600':'400'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${l}</div>`).join('')
+  const linhas=[
+    {t:nome,s:'12px',c:'.8',w:'600'},
+    {t:e.cnpj?'CNPJ: '+e.cnpj:'',s:'10px',c:'.4',w:'400'},
+    {t:e.fone||e.wa||'',s:'10px',c:'.45',w:'400'},
+    {t:e.email||'',s:'10px',c:'.35',w:'400'}
+  ].filter(x=>x.t)
+  el.innerHTML=linhas.map(x=>`<div style="font-size:${x.s};color:rgba(255,255,255,${x.c});margin-top:3px;font-weight:${x.w};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px">${x.t}</div>`).join('')
+  if(!linhas.length)el.innerHTML='<div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:4px">Configure em Minha Empresa</div>'
 }
 function v(id){return(document.getElementById(id)||{}).value||''}
 
@@ -1356,12 +1362,14 @@ function docHead(titulo){
   const e=getEmpresa()
   const nome=e.fantasia||e.nome||'Minha Empresa'
   const logoSrc=document.querySelector('.slogo img')?.src||''
+  const endereco=[e.end||'',e.bairro||'',e.cidade?(e.cidade+(e.estado?' - '+e.estado:'')):'',e.cep?'CEP '+e.cep:''].filter(Boolean).join(', ')
   const infoLines=[
-    e.cnpj?'CNPJ: '+e.cnpj:'',
-    e.end||'',
-    e.cidade?(e.cidade+(e.estado?'/'+e.estado:'')):'',
+    e.cnpj?'CNPJ: '+e.cnpj+(e.ie?' | IE: '+e.ie:''):'',
+    endereco,
     e.fone?'Tel: '+e.fone:'',
-    e.email||''
+    e.wa&&e.wa!==e.fone?'WhatsApp: '+e.wa:'',
+    e.email||'',
+    e.site||''
   ].filter(Boolean)
   return`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${titulo}</title>
   <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Trebuchet MS',sans-serif;color:#1A0E08;background:#fff;padding:32px}
