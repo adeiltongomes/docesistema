@@ -2045,7 +2045,15 @@ function verReceita(id){
     </div>`:''}
     ${r.video?`
     <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Vídeo</div>
-    ${ytId?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;margin-bottom:14px"><iframe src="https://www.youtube.com/embed/${ytId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy"></iframe></div>`:
+    ${ytId?`<a href="https://www.youtube.com/watch?v=${ytId}" target="_blank" rel="noopener" style="display:block;position:relative;border-radius:10px;overflow:hidden;margin-bottom:14px;cursor:pointer;text-decoration:none">
+      <img src="https://img.youtube.com/vi/${ytId}/hqdefault.jpg" style="width:100%;display:block;border-radius:10px" onerror="this.src='https://img.youtube.com/vi/${ytId}/mqdefault.jpg'">
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.28)">
+        <div style="width:64px;height:64px;background:rgba(255,0,0,.92);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.4)">
+          <svg width="26" height="26" fill="white" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+      </div>
+      <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;font-size:11px;font-weight:600;letter-spacing:.3px;text-shadow:0 1px 4px rgba(0,0,0,.7)">Clique para assistir no YouTube</div>
+    </a>`:
     `<a href="${r.video}" target="_blank" rel="noopener" class="btn btn-s btn-sm" style="margin-bottom:14px;display:inline-flex"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Assistir vídeo</a>`}`:''}
   `,`<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-p" onclick="closeModal();editReceita('${r.id}')">Editar</button>`,false)
 }
