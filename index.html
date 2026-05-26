@@ -1163,10 +1163,12 @@ function renderCmpTable(){
       <td>${fmtDate(c.data)}</td><td><strong>${c.forn}</strong></td>
       <td style="color:var(--txt3)">${c.itens.length} item(s)</td>
       <td>${c.nf||'—'}${c.notaAnexo?`<span class="anexo-clip" title="Nota anexada"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`:''}</td>
-      <td>${c.pgto}</td><td><strong>${fmt(c.total)}</strong></td>
+      <td><span style="font-size:12px;font-weight:600;color:var(--txt2)">${c.pgto}${(c.parcelas||1)>1?`<br><span style="color:var(--cara);font-size:11px">${c.parcelas}× de ${fmt(c.valorParcela)}</span>`:''}</span></td>
+      <td><strong style="font-size:15px;font-weight:800;color:var(--bad)">${fmt(c.total)}</strong></td>
       <td>
         <button class="btn-ic" style="margin-right:4px" onclick="verCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" onclick="editCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="btn-ic" style="margin-right:4px" title="Imprimir" onclick="imprimirCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic btn-d" onclick="excluirCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </td>
     </tr>`).join('')}
@@ -1181,6 +1183,23 @@ function novaCompra(){
     <div class="fg"><label>Data</label><input type="date" id="cData" value="${today()}"></div></div>
     <div class="frow"><div class="fg"><label>Forma de Pagamento</label><select id="cPgto"><option>Pix</option><option>Boleto</option><option>Dinheiro</option><option>Cartão</option><option>Transferência</option></select></div>
     <div class="fg"><label>Nota Fiscal (número)</label><input id="cNf" placeholder="NF-000"></div></div>
+    <div class="frow"><div class="fg"><label>Parcelamento</label>
+      <select id="cParc" onchange="calcCmpTotals()">
+        <option value="1">À vista</option>
+        <option value="2">2× vezes</option>
+        <option value="3">3× vezes</option>
+        <option value="4">4× vezes</option>
+        <option value="5">5× vezes</option>
+        <option value="6">6× vezes</option>
+        <option value="8">8× vezes</option>
+        <option value="10">10× vezes</option>
+        <option value="12">12× vezes</option>
+      </select>
+    </div>
+    <div class="fg" id="cParcValBox" style="display:none">
+      <label>Valor por Parcela</label>
+      <div id="cParcVal" style="padding:9px 12px;background:var(--cream);border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-weight:700;color:var(--cara)">—</div>
+    </div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
     <div class="items-tbl">
       <div class="items-hdr"><span>Ingrediente</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div>
@@ -1270,8 +1289,16 @@ function addCmpItem(){tempItems.push({pId:'',nome:'',qtd:1,pu:0,sub:0});renderCI
 function removeCmpItem(i){if(tempItems.length>1)tempItems.splice(i,1);else tempItems=[{pId:'',nome:'',qtd:1,pu:0,sub:0}];renderCItens();calcCmpTotals()}
 function calcCmpTotals(){
   const total=tempItems.reduce((a,x)=>a+(x.sub||0),0)
+  const parc=parseInt((document.getElementById('cParc')||{}).value||'1')||1
+  const box=document.getElementById('cParcValBox')
+  const valEl=document.getElementById('cParcVal')
+  if(box)box.style.display=parc>1?'block':'none'
+  if(valEl&&parc>1)valEl.textContent=fmt(total/parc)
   const el=document.getElementById('cTotals');if(!el)return
-  el.innerHTML=`<div class="totbox"><div class="trow bold"><span>Total da Compra</span><span>${fmt(total)}</span></div></div>`
+  el.innerHTML=`<div class="totbox">
+    <div class="trow bold"><span>Total da Compra</span><span>${fmt(total)}</span></div>
+    ${parc>1?`<div class="trow" style="color:var(--cara);font-weight:600"><span>${parc}× parcelas de</span><span>${fmt(total/parc)}</span></div>`:''}
+  </div>`
 }
 function editCompra(id){
   const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
@@ -1283,6 +1310,15 @@ function editCompra(id){
     <div class="fg"><label>Data</label><input type="date" id="cData" value="${c.data}"></div></div>
     <div class="frow"><div class="fg"><label>Forma de Pagamento</label><select id="cPgto">${pgtos.map(p=>`<option ${p===c.pgto?'selected':''}>${p}</option>`).join('')}</select></div>
     <div class="fg"><label>Nota Fiscal (número)</label><input id="cNf" value="${c.nf||''}" placeholder="NF-000"></div></div>
+    <div class="frow"><div class="fg"><label>Parcelamento</label>
+      <select id="cParc" onchange="calcCmpTotals()">
+        ${[1,2,3,4,5,6,8,10,12].map(n=>`<option value="${n}" ${(c.parcelas||1)===n?'selected':''}>${n===1?'À vista':n+'× vezes'}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg" id="cParcValBox" style="display:${(c.parcelas||1)>1?'block':'none'}">
+      <label>Valor por Parcela</label>
+      <div id="cParcVal" style="padding:9px 12px;background:var(--cream);border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-weight:700;color:var(--cara)">${(c.parcelas||1)>1?fmt(c.total/(c.parcelas||1)):'—'}</div>
+    </div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
     <div class="items-tbl"><div class="items-hdr"><span>Ingrediente</span><span>Qtd</span><span>Preço Unit.</span><span>Subtotal</span><span></span></div><div id="cItens"></div></div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
@@ -1301,13 +1337,15 @@ function salvarCompra(){
   const total=itens.reduce((a,x)=>a+x.sub,0)
   const data=(document.getElementById('cData')||{}).value
   const pgto=(document.getElementById('cPgto')||{}).value
+  const parcelas=parseInt((document.getElementById('cParc')||{}).value||'1')||1
+  const valorParcela=parcelas>1?total/parcelas:null
   const cmps=DB.get(S.COMPRAS);const prods=DB.get(S.PRODUTOS);const trans=DB.get(S.TRANS)
   if(editId){
     const old=cmps.find(x=>x.id===editId)
     // reverter estoque da compra antiga
     if(old)old.itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque=Math.max(0,prods[i].estoque-it.qtd)}})
     const idx=cmps.findIndex(x=>x.id===editId)
-    cmps[idx]={id:editId,forn:forn.trim(),data,itens,total,pgto,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
+    cmps[idx]={id:editId,forn:forn.trim(),data,itens,total,pgto,parcelas,valorParcela,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     DB.set(S.COMPRAS,cmps)
     // aplicar novo estoque
     itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
@@ -1316,7 +1354,7 @@ function salvarCompra(){
     if(ti>=0){trans[ti]={...trans[ti],val:total,data,pgto,desc:forn.trim()};DB.set(S.TRANS,trans)}
     closeModal();toast('Compra atualizada! Estoque ajustado.','ok')
   }else{
-    const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
+    const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto,parcelas,valorParcela,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     cmps.push(cmp);DB.set(S.COMPRAS,cmps)
     itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
     DB.set(S.PRODUTOS,prods)
@@ -1330,11 +1368,18 @@ function verCompra(id){
   const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
   const na=c.notaAnexo
   openModal('Detalhe da Compra',`
-    <div style="margin-bottom:12px;display:flex;justify-content:space-between"><div><strong>${c.forn}</strong><div style="font-size:12px;color:var(--txt3)">${fmtDate(c.data)} · ${c.pgto}${c.nf?' · '+c.nf:''}</div></div></div>
+    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start">
+      <div><strong style="font-size:15px">${c.forn}</strong><div style="font-size:12px;color:var(--txt3);margin-top:3px">${fmtDate(c.data)}${c.nf?' · NF: '+c.nf:''}</div></div>
+      <button class="btn btn-s btn-sm" onclick="closeModal();imprimirCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Imprimir</button>
+    </div>
     <div class="tc"><table><thead><tr><th>Item</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead><tbody>
       ${c.itens.map(i=>`<tr><td>${i.nome||prodNome(i.pId)}</td><td>${i.qtd}</td><td>${fmt(i.pu)}</td><td>${fmt(i.sub)}</td></tr>`).join('')}
     </tbody></table></div>
-    <div style="margin-top:12px" class="totbox"><div class="trow bold"><span>Total</span><span>${fmt(c.total)}</span></div></div>
+    <div style="margin-top:12px" class="totbox">
+      <div class="trow"><span>Pagamento</span><span style="font-weight:600">${c.pgto}</span></div>
+      ${(c.parcelas||1)>1?`<div class="trow" style="color:var(--cara);font-weight:600"><span>${c.parcelas}× parcelas de</span><span>${fmt(c.valorParcela)}</span></div>`:''}
+      <div class="trow bold"><span>Total</span><span>${fmt(c.total)}</span></div>
+    </div>
     ${c.obs?`<div style="margin-top:8px;font-size:13px;color:var(--txt3)">Obs: ${c.obs}</div>`:''}
     ${na?`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--cream2)">
       <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nota de Compra / NF</div>
@@ -1348,6 +1393,51 @@ function excluirCompra(id){
   DB.set(S.COMPRAS,DB.get(S.COMPRAS).filter(x=>x.id!==id))
   DB.set(S.TRANS,DB.get(S.TRANS).filter(x=>x.ref!==id))
   toast('Compra removida','ok');render('compras')
+}
+function imprimirCompra(id){
+  const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
+  const w=window.open('','_blank')
+  const parc=(c.parcelas||1)>1?`<tr><td style="font-weight:600">Parcelamento</td><td><strong style="color:#B8912A">${c.parcelas}× de ${fmt(c.valorParcela)}</strong></td></tr>`:''
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Compra — ${c.forn}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Trebuchet MS',sans-serif;color:#2D1222;padding:28px}
+  .doc{max-width:800px;margin:0 auto}
+  h1{font-family:'Palatino Linotype',serif;font-size:20px;color:#B8912A;margin-bottom:4px}
+  .sub{font-size:12px;color:#8A7E6E;margin-bottom:20px}
+  .info-tbl{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px}
+  .info-tbl td{padding:7px 12px;border:1px solid #EDEBE6}
+  .info-tbl td:first-child{background:#F8F7F4;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#8A7E6E;width:130px}
+  .prod-hdr{background:#1C1A18;color:#fff;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:0}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
+  thead th{background:#1C1A18;color:#fff;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.8px}
+  tbody td{padding:8px 12px;border-bottom:1px solid #EDEBE6}
+  tbody tr:nth-child(even){background:#F8F7F4}
+  .total-row{background:#1C1A18;color:#fff;display:flex;justify-content:space-between;padding:10px 12px;font-size:15px;font-weight:700;border-radius:0 0 6px 6px}
+  .parc-row{background:#FDF8EE;border:1px solid #B8912A;border-top:none;display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;font-weight:700;color:#B8912A}
+  .footer{margin-top:28px;border-top:1px solid #EDEBE6;padding-top:12px;font-size:11px;color:#8A7E6E;text-align:center}
+  @media print{body{padding:16px}}</style></head><body>
+  <div class="doc">
+    <div style="border-bottom:3px solid #B8912A;padding-bottom:12px;margin-bottom:20px">
+      <h1>Compra de Insumos</h1>
+      <div class="sub">${getEmpresa().fantasia||getEmpresa().nome||'Minha Empresa'} · ${fmtDate(c.data)}</div>
+    </div>
+    <table class="info-tbl" style="margin-bottom:20px">
+      <tr><td>Fornecedor</td><td><strong>${c.forn}</strong></td></tr>
+      <tr><td>Data</td><td>${fmtDate(c.data)}</td></tr>
+      <tr><td>Pagamento</td><td>${c.pgto}</td></tr>
+      ${parc}
+      ${c.nf?`<tr><td>Nota Fiscal</td><td>${c.nf}</td></tr>`:''}
+      ${c.obs?`<tr><td>Observações</td><td>${c.obs}</td></tr>`:''}
+    </table>
+    <div class="prod-hdr">Itens Comprados</div>
+    <table><thead><tr><th>Item</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead><tbody>
+      ${c.itens.map(i=>`<tr><td>${i.nome||''}</td><td>${i.qtd}</td><td>${fmt(i.pu)}</td><td>${fmt(i.sub)}</td></tr>`).join('')}
+    </tbody></table>
+    ${(c.parcelas||1)>1?`<div class="parc-row"><span>${c.parcelas}× parcelas de</span><span>${fmt(c.valorParcela)}</span></div>`:''}
+    <div class="total-row"><span>Total da Compra</span><span>${fmt(c.total)}</span></div>
+    <div class="footer">Documento gerado em ${new Date().toLocaleDateString('pt-BR')} · DoceSistema</div>
+  </div>
+  <script>window.onload=()=>{window.print()}<\/script></body></html>`)
+  w.document.close()
 }
 
 // ===== FINANCEIRO =====
