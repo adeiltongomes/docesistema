@@ -1347,16 +1347,16 @@ function salvarCompra(){
     const idx=cmps.findIndex(x=>x.id===editId)
     cmps[idx]={id:editId,forn:forn.trim(),data,itens,total,pgto,parcelas,valorParcela,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     DB.set(S.COMPRAS,cmps)
-    // aplicar novo estoque
-    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
+    // aplicar novo estoque e atualizar custo unitário
+    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){prods[i].estoque+=it.qtd;if(it.pu>0)prods[i].custo=it.pu}}})
     DB.set(S.PRODUTOS,prods)
     const ti=trans.findIndex(x=>x.ref===editId)
     if(ti>=0){trans[ti]={...trans[ti],val:total,data,pgto,desc:forn.trim()};DB.set(S.TRANS,trans)}
-    closeModal();toast('Compra atualizada! Estoque ajustado.','ok')
+    closeModal();toast('Compra atualizada! Estoque e custo ajustados.','ok')
   }else{
     const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto,parcelas,valorParcela,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     cmps.push(cmp);DB.set(S.COMPRAS,cmps)
-    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque+=it.qtd}})
+    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){prods[i].estoque+=it.qtd;if(it.pu>0)prods[i].custo=it.pu}}})
     DB.set(S.PRODUTOS,prods)
     trans.push({id:genId(),tipo:'saida',cat:'Compra de insumos',desc:forn.trim(),val:total,data,pgto,ref:cmp.id})
     DB.set(S.TRANS,trans)
@@ -2063,7 +2063,7 @@ function atualizarPreviewProd(id,lotes){
   const ings=(r.ingredientes||[]).filter(x=>(x.pId&&x.pId!=='_custom')||x.nome&&x.nome.trim())
   if(!ings.length){el.innerHTML=`<div class="empty" style="padding:20px 0"><p>Esta receita não tem ingredientes cadastrados.</p></div>`;return}
   const prods=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente')
-  let temProblema=false
+  let temProblema=false;let custoTotal=0
   const rows=ings.map(ing=>{
     const qtdTotal=(parseFloat(ing.qtd)||0)*lotes
     const prod=ing.pId&&ing.pId!=='_custom'
@@ -2071,6 +2071,8 @@ function atualizarPreviewProd(id,lotes){
       :prods.find(p=>p.nome.toLowerCase().trim()===(ing.nome||'').toLowerCase().trim())
     const estoqueAtual=prod!=null?prod.estoque:null
     const estoqueApos=estoqueAtual!=null?estoqueAtual-qtdTotal:null
+    const custo=prod&&prod.custo>0?qtdTotal*prod.custo:null
+    if(custo!=null)custoTotal+=custo
     let status,cor
     if(prod==null){status='⚠ Não cadastrado';cor='var(--warn)';temProblema=true}
     else if(estoqueApos<0){status='⚠ Insuficiente';cor='var(--bad)';temProblema=true}
@@ -2080,15 +2082,20 @@ function atualizarPreviewProd(id,lotes){
       <td style="text-align:center">${qtdTotal%1===0?qtdTotal:qtdTotal.toFixed(2)} ${ing.und}</td>
       <td style="text-align:center">${estoqueAtual!=null?estoqueAtual+(prod?(' '+prod.un):''):'—'}</td>
       <td style="text-align:center;font-weight:700">${estoqueApos!=null?(estoqueApos<0?'<span style="color:var(--bad)">'+estoqueApos.toFixed(2)+'</span>':estoqueApos.toFixed(2))+(prod?(' '+prod.un):''):'—'}</td>
+      <td style="text-align:right;font-weight:700;color:var(--txt2)">${custo!=null?fmt(custo):'—'}</td>
       <td style="color:${cor};font-weight:700;font-size:11px;text-align:center">${status}</td>
     </tr>`
   }).join('')
   el.innerHTML=`
     ${temProblema?`<div style="background:#FFF3CD;border:1.5px solid #F0C000;border-radius:7px;padding:8px 12px;font-size:12px;color:#7A5A00;margin-bottom:10px;font-weight:600">⚠ Alguns ingredientes estão com estoque insuficiente ou não cadastrados. A produção vai descontar até o limite disponível.</div>`:''}
     <table style="font-size:12px">
-      <thead><tr><th>Ingrediente</th><th style="text-align:center">Usar (${lotes} lote${lotes>1?'s':''})</th><th style="text-align:center">Estoque Atual</th><th style="text-align:center">Após Produção</th><th style="text-align:center">Status</th></tr></thead>
+      <thead><tr><th>Ingrediente</th><th style="text-align:center">Usar (${lotes} lote${lotes>1?'s':''})</th><th style="text-align:center">Estoque Atual</th><th style="text-align:center">Após Produção</th><th style="text-align:right">Custo</th><th style="text-align:center">Status</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`
+    </table>
+    ${custoTotal>0?`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:10px 14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2)">
+      <span style="font-size:13px;font-weight:600;color:var(--txt2)">Custo total${lotes>1?' ('+lotes+' lotes)':''}</span>
+      <span style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(custoTotal)}</span>
+    </div>`:''}`
 }
 
 function confirmarProducao(id){
@@ -2135,9 +2142,22 @@ function verReceita(id){
     </div>
     ${r.ingredientes&&r.ingredientes.length?`
     <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Ingredientes</div>
-    <div style="background:var(--cream);border-radius:8px;padding:10px 14px;margin-bottom:14px">
-      ${r.ingredientes.map(i=>`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--cream2);font-size:13px"><span style="color:var(--cara);font-weight:600;min-width:80px">${i.qtd} ${i.und}</span><span>${i.nome}</span></div>`).join('')}
-    </div>`:''}
+    <div style="background:var(--cream);border-radius:8px;padding:10px 14px;margin-bottom:14px">${(()=>{
+      const allProds=DB.get(S.PRODUTOS)
+      let totalCusto=0;let temCusto=false
+      const rows=r.ingredientes.map(i=>{
+        const prod=i.pId&&i.pId!=='_custom'?allProds.find(p=>p.id===i.pId):allProds.find(p=>p.nome.toLowerCase().trim()===(i.nome||'').toLowerCase().trim())
+        const custo=prod&&prod.custo>0?(parseFloat(i.qtd)||0)*prod.custo:null
+        if(custo!=null){totalCusto+=custo;temCusto=true}
+        return`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--cream2);font-size:13px;align-items:center">
+          <span style="color:var(--cara);font-weight:600;min-width:80px">${i.qtd} ${i.und}</span>
+          <span style="flex:1">${i.nome}</span>
+          <span style="font-size:12px;color:var(--txt3);font-weight:600;white-space:nowrap">${custo!=null?fmt(custo):'—'}</span>
+        </div>`
+      }).join('')
+      const rodape=temCusto?`<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:2px;font-size:13px;font-weight:700;color:var(--choc)"><span>Custo total da receita</span><span style="color:var(--cara)">${fmt(totalCusto)}</span></div>`:''
+      return rows+rodape
+    })()}</div>`:''}
     ${r.preparo||r.audioPrep?`
     <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Modo de Preparo</div>
     ${r.preparo?`<div style="font-size:13px;color:var(--txt);line-height:1.7;white-space:pre-wrap;margin-bottom:10px">${r.preparo}</div>`:''}
