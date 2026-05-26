@@ -1826,6 +1826,7 @@ function renderReceitasGrid(){
         ${r.ingredientes&&r.ingredientes.length?`<div class="rec-ing-preview">${r.ingredientes.slice(0,3).map(i=>`<span>${i.qtd} ${i.und} ${i.nome}</span>`).join('')}${r.ingredientes.length>3?`<span style="color:var(--txt3)">+${r.ingredientes.length-3} ingredientes</span>`:''}</div>`:''}
         <div class="rec-actions">
           <button class="btn btn-s btn-sm" onclick="verReceita('${r.id}')">Ver Receita</button>
+          <button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="produzirReceita('${r.id}')">⚙ Produzir</button>
           <button class="btn-ic" onclick="editReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="btn-ic btn-d" onclick="excluirReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>
@@ -2000,9 +2001,77 @@ function salvarReceita(){
 }
 
 function excluirReceita(id){
-  if(!confirm('Excluir esta receita?'))return
-  DB.set(S.RECEITAS,DB.get(S.RECEITAS).filter(x=>x.id!==id))
-  toast('Receita excluída','ok');render('receitas')
+  const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
+  confirmarModal(`Deseja excluir a receita <strong>${r.nome}</strong>?<br><small style="color:var(--txt3)">Esta ação não pode ser desfeita.</small>`,()=>{
+    DB.set(S.RECEITAS,DB.get(S.RECEITAS).filter(x=>x.id!==id))
+    toast('Receita excluída','ok');render('receitas')
+  })
+}
+
+function produzirReceita(id){
+  const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
+  const body=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2)">
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:2px">Quantidade de lotes a produzir</div>
+        <div style="font-size:11px;color:var(--txt3)">Os ingredientes serão descontados proporcionalmente do estoque</div>
+      </div>
+      <input type="number" id="prodLotes" value="1" min="1" step="1" oninput="atualizarPreviewProd('${id}',this.value)"
+        style="width:70px;padding:8px;border:1.5px solid var(--cara);border-radius:8px;font-size:18px;font-weight:700;text-align:center;font-family:inherit;color:var(--txt);outline:none">
+    </div>
+    <div id="previewProdIngredientes"></div>`
+  openModal('⚙ Produzir — '+r.nome,body,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" style="background:var(--ok)" onclick="confirmarProducao('${id}')">Confirmar Produção</button>`)
+  atualizarPreviewProd(id,1)
+}
+
+function atualizarPreviewProd(id,lotes){
+  lotes=Math.max(1,parseInt(lotes)||1)
+  const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
+  const el=document.getElementById('previewProdIngredientes');if(!el)return
+  const ings=(r.ingredientes||[]).filter(x=>x.nome&&x.nome.trim())
+  if(!ings.length){el.innerHTML=`<div class="empty" style="padding:20px 0"><p>Esta receita não tem ingredientes cadastrados.</p></div>`;return}
+  const prods=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente')
+  let temProblema=false
+  const rows=ings.map(ing=>{
+    const qtdTotal=(parseFloat(ing.qtd)||0)*lotes
+    const prod=prods.find(p=>p.nome.toLowerCase().trim()===ing.nome.toLowerCase().trim())
+    const estoqueAtual=prod!=null?prod.estoque:null
+    const estoqueApos=estoqueAtual!=null?estoqueAtual-qtdTotal:null
+    let status,cor
+    if(prod==null){status='⚠ Não cadastrado';cor='var(--warn)';temProblema=true}
+    else if(estoqueApos<0){status='⚠ Insuficiente';cor='var(--bad)';temProblema=true}
+    else{status='✓ OK';cor='var(--ok)'}
+    return`<tr>
+      <td><strong>${ing.nome}</strong></td>
+      <td style="text-align:center">${qtdTotal%1===0?qtdTotal:qtdTotal.toFixed(2)} ${ing.und}</td>
+      <td style="text-align:center">${estoqueAtual!=null?estoqueAtual+(prod?(' '+prod.un):''):'—'}</td>
+      <td style="text-align:center;font-weight:700">${estoqueApos!=null?(estoqueApos<0?'<span style="color:var(--bad)">'+estoqueApos.toFixed(2)+'</span>':estoqueApos.toFixed(2))+(prod?(' '+prod.un):''):'—'}</td>
+      <td style="color:${cor};font-weight:700;font-size:11px;text-align:center">${status}</td>
+    </tr>`
+  }).join('')
+  el.innerHTML=`
+    ${temProblema?`<div style="background:#FFF3CD;border:1.5px solid #F0C000;border-radius:7px;padding:8px 12px;font-size:12px;color:#7A5A00;margin-bottom:10px;font-weight:600">⚠ Alguns ingredientes estão com estoque insuficiente ou não cadastrados. A produção vai descontar até o limite disponível.</div>`:''}
+    <table style="font-size:12px">
+      <thead><tr><th>Ingrediente</th><th style="text-align:center">Usar (${lotes} lote${lotes>1?'s':''})</th><th style="text-align:center">Estoque Atual</th><th style="text-align:center">Após Produção</th><th style="text-align:center">Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+}
+
+function confirmarProducao(id){
+  const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
+  const lotes=Math.max(1,parseInt((document.getElementById('prodLotes')||{}).value)||1)
+  const prods=DB.get(S.PRODUTOS)
+  let descontados=0
+  ;(r.ingredientes||[]).forEach(ing=>{
+    const qtdTotal=(parseFloat(ing.qtd)||0)*lotes
+    if(qtdTotal<=0)return
+    const i=prods.findIndex(p=>p.tipo==='ingrediente'&&p.nome.toLowerCase().trim()===ing.nome.toLowerCase().trim())
+    if(i>=0){prods[i].estoque=Math.max(0,prods[i].estoque-qtdTotal);descontados++}
+  })
+  DB.set(S.PRODUTOS,prods)
+  closeModal()
+  toast(`${lotes} lote${lotes>1?'s':''} produzido${lotes>1?'s':''}! ${descontados} ingrediente${descontados!==1?'s':''} descontado${descontados!==1?'s':''} do estoque.`,'ok')
 }
 
 function _ytId(url){
@@ -2055,7 +2124,7 @@ function verReceita(id){
       <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;font-size:11px;font-weight:600;letter-spacing:.3px;text-shadow:0 1px 4px rgba(0,0,0,.7)">Clique para assistir no YouTube</div>
     </a>`:
     `<a href="${r.video}" target="_blank" rel="noopener" class="btn btn-s btn-sm" style="margin-bottom:14px;display:inline-flex"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Assistir vídeo</a>`}`:''}
-  `,`<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-p" onclick="closeModal();editReceita('${r.id}')">Editar</button>`,false)
+  `,`<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-s" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="closeModal();produzirReceita('${r.id}')">⚙ Produzir</button><button class="btn btn-p" onclick="closeModal();editReceita('${r.id}')">Editar</button>`,false)
 }
 
 // ===== PRINT =====
