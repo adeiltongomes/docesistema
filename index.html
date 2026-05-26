@@ -1207,9 +1207,19 @@ function salvarEmpresa(){
 function v(id){return(document.getElementById(id)||{}).value||''}
 
 // ===== ORDENS DE SERVIÇO =====
+const lblOS={aberta:'Aberta',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'}
+const bdgOS={aberta:'bdg-b',em_andamento:'bdg-y',concluida:'bdg-g',cancelada:'bdg-r'}
+
 function osHTML(){
   return`
-  <div class="ph"><div><h2>Ordens de Serviço</h2><p>Geradas a partir de orçamentos aprovados</p></div></div>
+  <div class="ph">
+    <div><h2>Ordens de Serviço</h2><p>Geradas automaticamente dos orçamentos aprovados</p></div>
+    <button class="btn btn-s" onclick="sincronizarOS()">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Sincronizar Orçamentos
+    </button>
+  </div>
+  <div id="osBanner"></div>
   <div class="card">
     <div class="tbar">
       <div class="srch"><svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="srchOS" placeholder="Buscar cliente ou OS..." oninput="renderOSTable()"></div>
@@ -1220,7 +1230,54 @@ function osHTML(){
     <div class="tc" id="osTable"></div>
   </div>`
 }
-function bindOS(){renderOSTable()}
+
+function bindOS(){
+  const geradas=autoGerarOS()
+  renderOSBanner(geradas)
+  renderOSTable()
+}
+
+function autoGerarOS(){
+  const aprovados=DB.get(S.ORCAMENTOS).filter(o=>o.status==='aprovado')
+  const orcIdsComOS=new Set(DB.get(S.OS).map(os=>os.orcId))
+  const pendentes=aprovados.filter(o=>!orcIdsComOS.has(o.id))
+  if(!pendentes.length)return 0
+  const all=DB.get(S.OS)
+  pendentes.forEach(o=>{
+    const num=(all.length?Math.max(...all.map(x=>x.num)):0)+1
+    all.push({id:genId(),num,orcId:o.id,cliId:o.cliId,data:today(),prazo:'',itens:JSON.parse(JSON.stringify(o.itens)),total:o.totalF,status:'aberta',obs:o.obs||'',responsavel:''})
+  })
+  DB.set(S.OS,all)
+  return pendentes.length
+}
+
+function sincronizarOS(){
+  const n=autoGerarOS()
+  if(n>0){toast(`${n} nova(s) OS gerada(s)!`,'ok');renderOSBanner(n)}
+  else toast('Nenhum orçamento aprovado pendente','warn')
+  renderOSTable()
+}
+
+function renderOSBanner(geradas){
+  const el=document.getElementById('osBanner');if(!el)return
+  const orcs=DB.get(S.ORCAMENTOS).filter(o=>o.status==='aprovado')
+  const all=DB.get(S.OS)
+  const abertas=all.filter(o=>o.status==='aberta').length
+  const andamento=all.filter(o=>o.status==='em_andamento').length
+  el.innerHTML=`
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">
+    <div class="stat b"><div class="stat-lbl">Orç. Aprovados</div><div class="stat-val">${orcs.length}</div><div class="stat-sub">Total de aprovados</div></div>
+    <div class="stat"><div class="stat-lbl">OS Abertas</div><div class="stat-val">${abertas}</div><div class="stat-sub">Aguardando início</div></div>
+    <div class="stat"><div class="stat-lbl">Em Andamento</div><div class="stat-val" style="color:var(--warn)">${andamento}</div><div class="stat-sub">Em produção</div></div>
+    <div class="stat g"><div class="stat-lbl">Concluídas</div><div class="stat-val">${all.filter(o=>o.status==='concluida').length}</div><div class="stat-sub">Finalizadas</div></div>
+  </div>
+  ${geradas>0?`<div style="background:#E8F4EE;border:1px solid #4A8A65;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#2E7D52;display:flex;align-items:center;gap:8px">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <strong>${geradas} OS gerada(s) automaticamente</strong> a partir dos orçamentos aprovados!
+  </div>`:''}
+  `
+}
+
 function renderOSTable(){
   const q=(document.getElementById('srchOS')||{}).value||''
   const f=(document.getElementById('filtOS')||{}).value||''
@@ -1228,15 +1285,17 @@ function renderOSTable(){
   if(q)rows=rows.filter(o=>clienteNome(o.cliId).toLowerCase().includes(q.toLowerCase())||String(o.num).includes(q))
   if(f)rows=rows.filter(o=>o.status===f)
   const el=document.getElementById('osTable');if(!el)return
-  if(!rows.length){el.innerHTML=`<div class="empty"><svg width="40" height="40" fill="none" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><h3>Nenhuma OS</h3><p>Aprove um orçamento para gerar uma OS</p></div>`;return}
-  const bdgOS={aberta:'bdg-b',em_andamento:'bdg-y',concluida:'bdg-g',cancelada:'bdg-r'}
-  const lblOS={aberta:'Aberta',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'}
-  el.innerHTML=`<table><thead><tr><th>OS #</th><th>Cliente</th><th>Criada em</th><th>Prazo</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
-    ${rows.map(os=>`<tr>
+  if(!rows.length){el.innerHTML=`<div class="empty"><svg width="40" height="40" fill="none" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><h3>Nenhuma OS</h3><p>Aprove um orçamento para gerar uma OS automaticamente</p></div>`;return}
+  const orcs=DB.get(S.ORCAMENTOS)
+  el.innerHTML=`<table><thead><tr><th>OS #</th><th>Cliente</th><th>Orç. Origem</th><th>Criada em</th><th>Prazo</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.map(os=>{
+      const orc=orcs.find(x=>x.id===os.orcId)
+      return`<tr>
       <td><strong>#${String(os.num).padStart(3,'0')}</strong></td>
       <td><strong>${clienteNome(os.cliId)}</strong></td>
+      <td><span class="bdg bdg-b">${orc?'Orç #'+orc.id.slice(-4).toUpperCase():'Manual'}</span></td>
       <td>${fmtDate(os.data)}</td>
-      <td>${os.prazo?fmtDate(os.prazo):'—'}</td>
+      <td>${os.prazo?`<span style="color:${os.prazo<today()&&os.status!=='concluida'?'var(--bad)':'inherit'}">${fmtDate(os.prazo)}</span>`:'—'}</td>
       <td><strong>${fmt(os.total)}</strong></td>
       <td><span class="bdg ${bdgOS[os.status]||'bdg-gr'}">${lblOS[os.status]||os.status}</span></td>
       <td style="white-space:nowrap">
@@ -1246,17 +1305,18 @@ function renderOSTable(){
           ${['aberta','em_andamento','concluida','cancelada'].map(s=>`<option value="${s}" ${os.status===s?'selected':''}>${lblOS[s]}</option>`).join('')}
         </select>
       </td>
-    </tr>`).join('')}
+    </tr>`}).join('')}
   </tbody></table>`
 }
+
 function gerarOS(orcId){
   const o=DB.get(S.ORCAMENTOS).find(x=>x.id===orcId);if(!o)return
+  const orcIdsComOS=new Set(DB.get(S.OS).map(os=>os.orcId))
+  if(orcIdsComOS.has(orcId)){toast('OS já gerada para este orçamento','warn');navigate('os');return}
   const all=DB.get(S.OS)
   const num=(all.length?Math.max(...all.map(x=>x.num)):0)+1
-  const os={id:genId(),num,orcId,cliId:o.cliId,data:today(),prazo:'',itens:JSON.parse(JSON.stringify(o.itens)),total:o.totalF,status:'aberta',obs:o.obs||'',responsavel:''}
-  all.push(os);DB.set(S.OS,all)
-  toast(`OS #${String(num).padStart(3,'0')} criada!`,'ok')
-  navigate('os')
+  all.push({id:genId(),num,orcId,cliId:o.cliId,data:today(),prazo:'',itens:JSON.parse(JSON.stringify(o.itens)),total:o.totalF,status:'aberta',obs:o.obs||'',responsavel:''})
+  DB.set(S.OS,all);toast(`OS #${String(num).padStart(3,'0')} criada!`,'ok');navigate('os')
 }
 function updateStatusOS(id,status){
   const all=DB.get(S.OS);const i=all.findIndex(x=>x.id===id);if(i<0)return
