@@ -599,32 +599,34 @@ function renderOItens(){
   const el=document.getElementById('oItens');if(!el)return
   const prods=DB.get(S.PRODUTOS).filter(p=>p.ativo)
   el.innerHTML=tempItems.map((it,i)=>`
-    <div class="items-row">
-      <select oninput="selectProdOrc(${i},this.value)" style="padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
-        <option value="">Selecionar do estoque...</option>
-        ${prods.map(p=>`<option value="${p.id}" ${it.pId===p.id?'selected':''}>${p.nome}${p.preco>0?' — '+fmt(p.preco):''}</option>`).join('')}
-        <option value="_custom" ${it.pId==='_custom'?'selected':''}>Outro (digitar)</option>
-      </select>
-      ${it.pId==='_custom'?`<input placeholder="Nome" value="${it.nome||''}" oninput="updateOrcItem(${i},'nome',this.value)" style="grid-column:span 0;padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;width:100%;margin-top:4px;display:block" class="orc-custom-nome-${i}">`:``}
-      <input type="number" value="${it.qtd||1}" min="1" oninput="updateOrcItem(${i},'qtd',this.value)">
-      <input type="number" value="${it.pu||0}" min="0" step="0.01" oninput="updateOrcItem(${i},'pu',this.value)">
-      <span style="font-size:12px;color:var(--txt2);font-weight:600">${fmt(it.sub||0)}</span>
-      <button class="btn-ic btn-d" onclick="removeOrcItem(${i})" style="padding:4px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <div style="border-top:1px solid var(--cream2)">
+      <div style="display:grid;grid-template-columns:3fr 1fr 1.5fr 1fr 36px;gap:6px;padding:8px 11px;align-items:center">
+        <select oninput="selectProdOrc(${i},this.value)" style="padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%">
+          <option value="">Selecionar do estoque...</option>
+          ${prods.map(p=>`<option value="${p.id}" ${it.pId===p.id?'selected':''}>${p.nome}${p.preco>0?' — '+fmt(p.preco):''}</option>`).join('')}
+          <option value="_custom" ${it.pId==='_custom'?'selected':''}>Outro (digitar)</option>
+        </select>
+        <input type="number" value="${it.qtd||1}" min="1" oninput="orcNumChange(${i},'qtd',this.value)">
+        <input type="number" value="${it.pu||0}" min="0" step="0.01" oninput="orcNumChange(${i},'pu',this.value)">
+        <span id="orc_sub_${i}" style="font-size:12px;color:var(--txt2);font-weight:600">${fmt(it.sub||0)}</span>
+        <button class="btn-ic btn-d" onclick="removeOrcItem(${i})" style="padding:4px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      ${it.pId==='_custom'?`<div style="padding:0 11px 8px"><input id="orc_nome_${i}" placeholder="Nome do item personalizado..." value="${it.nome||''}" oninput="tempItems[${i}].nome=this.value" style="width:100%;padding:6px 10px;border:1.5px solid var(--cara);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)"></div>`:''}
     </div>`).join('')
 }
 function selectProdOrc(i,pId){
   const prods=DB.get(S.PRODUTOS)
   if(pId&&pId!=='_custom'){
     const p=prods.find(x=>x.id===pId)
-    if(p){tempItems[i].pId=pId;tempItems[i].nome=p.nome;tempItems[i].pu=p.preco>0?p.preco:tempItems[i].pu;tempItems[i].sub=(tempItems[i].qtd||1)*tempItems[i].pu}
+    if(p){tempItems[i].pId=pId;tempItems[i].nome=p.nome;tempItems[i].pu=p.preco>0?p.preco:(p.custo||0);tempItems[i].sub=(tempItems[i].qtd||1)*tempItems[i].pu}
   }else{tempItems[i].pId=pId||'';if(pId==='_custom')tempItems[i].nome=''}
   renderOItens();calcOrcTotals()
 }
-function updateOrcItem(i,f,v){
-  if(f==='nome')tempItems[i].nome=v
-  else{tempItems[i][f]=parseFloat(v)||0;tempItems[i].sub=(tempItems[i].qtd||1)*(tempItems[i].pu||0)}
-  const sub=document.querySelectorAll(`#oItens .items-row`)[i]
-  if(sub){const span=sub.querySelector('span');if(span)span.textContent=fmt(tempItems[i].sub||0)}
+function orcNumChange(i,f,v){
+  tempItems[i][f]=parseFloat(v)||0
+  tempItems[i].sub=(tempItems[i].qtd||1)*(tempItems[i].pu||0)
+  const span=document.getElementById(`orc_sub_${i}`)
+  if(span)span.textContent=fmt(tempItems[i].sub)
   calcOrcTotals()
 }
 function addOrcItem(){tempItems.push({pId:'',nome:'',qtd:1,pu:0,sub:0});renderOItens();calcOrcTotals()}
