@@ -1568,6 +1568,43 @@ function salvarOS(id){
 const REC_CATS=['Bolos','Tortas','Doces & Bombons','Brigadeiros','Salgados','Biscoitos & Cookies','Bebidas','Sobremesas','Outros']
 const REC_UNIDS=['g','kg','ml','L','xícara','colher de sopa','colher de chá','unidade','fatia','pitada','a gosto']
 const REC_DIFS=['Fácil','Médio','Difícil']
+function getRecCats(){
+  const custom=JSON.parse(localStorage.getItem('ds_rec_cats')||'[]')
+  return [...REC_CATS,...custom]
+}
+function saveNewCat(nome){
+  nome=(nome||'').trim();if(!nome)return null
+  const all=getRecCats()
+  if(all.map(x=>x.toLowerCase()).includes(nome.toLowerCase()))return nome
+  const custom=JSON.parse(localStorage.getItem('ds_rec_cats')||'[]')
+  custom.push(nome);localStorage.setItem('ds_rec_cats',JSON.stringify(custom))
+  return nome
+}
+function handleRecCat(sel){
+  document.getElementById('rCatNovaDiv').style.display=sel.value==='__nova__'?'flex':'none'
+  if(sel.value!=='__nova__')document.getElementById('rCatNovaInput').value=''
+}
+function confirmarNovaCategoria(){
+  const inp=document.getElementById('rCatNovaInput')
+  const sel=document.getElementById('rCat')
+  if(!inp||!sel)return
+  const nome=saveNewCat(inp.value)
+  if(!nome){toast('Digite o nome da categoria','err');return}
+  // adiciona ao select se ainda não existir
+  if(![...sel.options].find(o=>o.value===nome)){
+    const opt=new Option(nome,nome)
+    sel.insertBefore(opt,sel.querySelector('[value="__nova__"]'))
+  }
+  sel.value=nome
+  document.getElementById('rCatNovaDiv').style.display='none'
+  inp.value=''
+  toast(`Categoria "${nome}" criada!`,'ok')
+}
+function cancelarNovaCategoria(){
+  const sel=document.getElementById('rCat')
+  if(sel)sel.selectedIndex=0
+  document.getElementById('rCatNovaDiv').style.display='none'
+}
 
 function receitasHTML(){
   return`
@@ -1580,7 +1617,7 @@ function receitasHTML(){
       <div class="srch"><svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="srchRec" placeholder="Buscar receita..." oninput="renderReceitasGrid()"></div>
       <select class="sel-filter" id="filtRec" onchange="renderReceitasGrid()">
         <option value="">Todas as categorias</option>
-        ${REC_CATS.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        ${getRecCats().map(c=>`<option value="${c}">${c}</option>`).join('')}
       </select>
       <select class="sel-filter" id="filtDif" onchange="renderReceitasGrid()">
         <option value="">Qualquer dificuldade</option>
@@ -1647,7 +1684,17 @@ function editReceita(id){
 function receitaForm(r){
   return`
   <div class="frow"><div class="fg"><label>Nome da Receita *</label><input id="rNome" value="${r.nome||''}" placeholder="Ex: Bolo de Chocolate"></div>
-  <div class="fg"><label>Categoria</label><select id="rCat">${REC_CATS.map(c=>`<option value="${c}" ${r.cat===c?'selected':''}>${c}</option>`).join('')}</select></div></div>
+  <div class="fg"><label>Categoria</label>
+    <select id="rCat" onchange="handleRecCat(this)">
+      ${getRecCats().map(c=>`<option value="${c}" ${r.cat===c?'selected':''}>${c}</option>`).join('')}
+      <option value="__nova__">+ Nova categoria...</option>
+    </select>
+    <div id="rCatNovaDiv" style="display:none;gap:6px;align-items:center;margin-top:5px">
+      <input id="rCatNovaInput" placeholder="Nome da nova categoria" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarNovaCategoria()}" style="flex:1;padding:7px 10px;border:1.5px solid var(--cara);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)">
+      <button type="button" class="btn btn-p btn-sm" onclick="confirmarNovaCategoria()">Criar</button>
+      <button type="button" class="btn btn-s btn-sm" onclick="cancelarNovaCategoria()">✕</button>
+    </div>
+  </div></div>
   <div class="frow t3"><div class="fg"><label>Rendimento</label><input id="rRend" value="${r.rendimento||''}" placeholder="Ex: 12 fatias"></div>
   <div class="fg"><label>Tempo de Preparo</label><input id="rTprep" value="${r.tpreparo||''}" placeholder="Ex: 30 min"></div>
   <div class="fg"><label>Tempo Forno/Cozimento</label><input id="rTcoz" value="${r.tcozimento||''}" placeholder="Ex: 45 min"></div></div>
