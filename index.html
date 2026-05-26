@@ -175,6 +175,10 @@ tbody td{padding:11px 13px;color:var(--txt)}
 .anexo-thumb{height:56px;width:72px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--cream2);flex-shrink:0}
 .anexo-name{flex:1;font-size:12px;color:var(--txt2);word-break:break-all;min-width:0}
 .anexo-clip{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--cara);margin-left:5px;vertical-align:middle;cursor:default}
+.orc-st-sel{border:none;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;font-family:inherit}
+.orc-st-pendente{background:#FFF3E0;color:#B05000}
+.orc-st-aprovado{background:#E8F4EE;color:#2E7D52}
+.orc-st-recusado{background:#FCEAEA;color:#B84040}
 </style>
 </head>
 <body>
@@ -766,21 +770,22 @@ function renderOrcTable(){
   if(f)rows=rows.filter(o=>o.status===f)
   const el=document.getElementById('orcTable');if(!el)return
   if(!rows.length){el.innerHTML=`<div class="empty"><h3>Nenhum orçamento</h3><p>Crie o primeiro orçamento</p></div>`;return}
-  const bdg={pendente:'bdg-y',aprovado:'bdg-g',recusado:'bdg-r'}
   el.innerHTML=`<table><thead><tr><th>Data</th><th>Cliente</th><th>Itens</th><th>Validade</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
     ${rows.map(o=>`<tr>
       <td>${fmtDate(o.data)}</td><td><strong>${clienteNome(o.cliId)}</strong></td>
       <td style="color:var(--txt3)">${o.itens.length} item(s)</td>
       <td>${fmtDate(o.validade)}</td>
       <td><strong>${fmt(o.totalF)}</strong></td>
-      <td><span class="bdg ${bdg[o.status]||'bdg-gr'}">${o.status.charAt(0).toUpperCase()+o.status.slice(1)}</span></td>
+      <td><select class="orc-st-sel orc-st-${o.status}" onchange="statusOrc('${o.id}',this.value)">
+        <option value="pendente" ${o.status==='pendente'?'selected':''}>Pendente</option>
+        <option value="aprovado" ${o.status==='aprovado'?'selected':''}>Aprovado</option>
+        <option value="recusado" ${o.status==='recusado'?'selected':''}>Recusado</option>
+      </select></td>
       <td style="white-space:nowrap">
         <button class="btn-ic" style="margin-right:4px" onclick="verOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" onclick="editOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" title="Imprimir" onclick="imprimirOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" title="Link p/ Cliente" onclick="gerarLinkOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        ${o.status==='pendente'?`<button class="btn-ic btn-ok" style="margin-right:4px" onclick="statusOrc('${o.id}','aprovado')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button class="btn-ic btn-d" style="margin-right:4px" onclick="statusOrc('${o.id}','recusado')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`:''}
         <button class="btn-ic btn-d" title="Excluir" onclick="excluirOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </td>
     </tr>`).join('')}
@@ -889,11 +894,21 @@ function salvarOrc(){
 function statusOrc(id,status){
   const orcs=DB.get(S.ORCAMENTOS);const i=orcs.findIndex(x=>x.id===id);if(i<0)return
   orcs[i].status=status;DB.set(S.ORCAMENTOS,orcs)
+  // atualiza cor do select sem re-renderizar a tabela inteira
+  const sels=document.querySelectorAll('.orc-st-sel')
+  sels.forEach(sel=>{
+    sel.classList.remove('orc-st-pendente','orc-st-aprovado','orc-st-recusado')
+    sel.classList.add('orc-st-'+sel.value)
+  })
   if(status==='aprovado'){
     toast('Orçamento aprovado!','ok')
     if(confirm('Deseja gerar uma Ordem de Serviço a partir deste orçamento?'))gerarOS(id)
     else render('orcamentos')
-  }else{toast('Orçamento recusado','warn');render('orcamentos')}
+  }else if(status==='recusado'){
+    toast('Orçamento marcado como recusado','warn')
+  }else{
+    toast('Status atualizado para pendente','ok')
+  }
 }
 function excluirOrc(id){
   if(!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.'))return
