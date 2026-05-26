@@ -1892,12 +1892,17 @@ function renderIngredientes(){
   const el=document.getElementById('ingList');if(!el)return
   const estoqueIngs=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo!==false)
   const stl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%'
-  el.innerHTML=tempIng.map((ing,i)=>`
+  const vinculado='padding:6px 10px;border:1.5px solid var(--cara);border-radius:7px;font-size:12px;font-weight:700;color:var(--cara);background:rgba(184,145,42,.08);display:flex;align-items:center;justify-content:center;white-space:nowrap'
+  el.innerHTML=tempIng.map((ing,i)=>{
+    const linked=ing.pId&&ing.pId!=='_custom'
+    return`
     <div style="display:grid;grid-template-columns:70px 90px 1fr 30px;gap:6px;align-items:center;margin-bottom:5px">
       <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value" style="${stl}">
-      <select onchange="tempIng[${i}].und=this.value" style="${stl}">
-        ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
-      </select>
+      ${linked
+        ?`<div style="${vinculado}" title="Unidade definida pelo cadastro do estoque">${ing.und}</div>`
+        :`<select onchange="tempIng[${i}].und=this.value" style="${stl}">
+            ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
+          </select>`}
       ${ing.pId==='_custom'
         ?`<div style="display:flex;gap:4px;align-items:center">
             <button onclick="selectIngRec(${i},'')" title="Voltar à lista" style="padding:5px 8px;border:1.5px solid var(--cream2);border-radius:7px;background:var(--cream);font-size:11px;cursor:pointer;color:var(--txt2);font-family:inherit;white-space:nowrap;flex-shrink:0">← Lista</button>
@@ -1909,7 +1914,7 @@ function renderIngredientes(){
             <option value="_custom">＋ Digitar manualmente</option>
           </select>`}
       <button class="btn-ic btn-d" onclick="remIngrediente(${i})" style="padding:5px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    </div>`).join('')
+    </div>`}).join('')
 }
 function selectIngRec(i,pId){
   if(pId==='_custom'){tempIng[i].pId='_custom';tempIng[i].nome=''}
