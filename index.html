@@ -780,7 +780,8 @@ function renderOrcTable(){
         <button class="btn-ic" style="margin-right:4px" title="Imprimir" onclick="imprimirOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" title="Link p/ Cliente" onclick="gerarLinkOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         ${o.status==='pendente'?`<button class="btn-ic btn-ok" style="margin-right:4px" onclick="statusOrc('${o.id}','aprovado')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button class="btn-ic btn-d" onclick="statusOrc('${o.id}','recusado')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`:''}
+        <button class="btn-ic btn-d" style="margin-right:4px" onclick="statusOrc('${o.id}','recusado')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`:''}
+        <button class="btn-ic btn-d" title="Excluir" onclick="excluirOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </td>
     </tr>`).join('')}
   </tbody></table>`
@@ -893,6 +894,11 @@ function statusOrc(id,status){
     if(confirm('Deseja gerar uma Ordem de Serviço a partir deste orçamento?'))gerarOS(id)
     else render('orcamentos')
   }else{toast('Orçamento recusado','warn');render('orcamentos')}
+}
+function excluirOrc(id){
+  if(!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.'))return
+  DB.set(S.ORCAMENTOS,DB.get(S.ORCAMENTOS).filter(x=>x.id!==id))
+  toast('Orçamento excluído','ok');render('orcamentos')
 }
 function verOrc(id){
   const o=DB.get(S.ORCAMENTOS).find(x=>x.id===id);if(!o)return
