@@ -1225,13 +1225,13 @@ function renderCItens(ings){
       </div>
     </div>`:''}
   `).join('')
-  // foca no input do novo ingrediente se modo ativo
-  tempItems.forEach((it,i)=>{if(it._novoMode){const inp=document.getElementById(`cNovoIngNome_${i}`);if(inp)inp.focus()}})
 }
 function selectIngCmp(i,pId){
   if(pId==='__novo__'){
     tempItems[i]._novoMode=true;tempItems[i].pId='';tempItems[i].nome=''
-    renderCItens();return
+    renderCItens()
+    setTimeout(()=>{const inp=document.getElementById(`cNovoIngNome_${i}`);if(inp)inp.focus()},50)
+    return
   }
   tempItems[i]._novoMode=false
   const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente')
@@ -1259,7 +1259,12 @@ function cancelarNovoIngCmp(i){
   tempItems[i]._novoMode=false;tempItems[i].pId='';tempItems[i].nome=''
   renderCItens()
 }
-function updateCmpItem(i,f,v){tempItems[i][f]=parseFloat(v)||0;tempItems[i].sub=(tempItems[i].qtd||1)*(tempItems[i].pu||0);renderCItens();calcCmpTotals()}
+function updateCmpItem(i,f,v){
+  tempItems[i][f]=parseFloat(v)||0
+  tempItems[i].sub=(tempItems[i].qtd||1)*(tempItems[i].pu||0)
+  if(tempItems.some(x=>x._novoMode)){calcCmpTotals();return}
+  renderCItens();calcCmpTotals()
+}
 function addCmpItem(){tempItems.push({pId:'',nome:'',qtd:1,pu:0,sub:0});renderCItens();calcCmpTotals()}
 function removeCmpItem(i){if(tempItems.length>1)tempItems.splice(i,1);else tempItems=[{pId:'',nome:'',qtd:1,pu:0,sub:0}];renderCItens();calcCmpTotals()}
 function calcCmpTotals(){
