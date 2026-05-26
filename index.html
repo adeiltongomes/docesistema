@@ -1023,8 +1023,11 @@ function salvarCli(){
   DB.set(S.CLIENTES,clis);closeModal();toast(editId?'Cliente atualizado!':'Cliente cadastrado!','ok');render('clientes')
 }
 function excluirCli(id){
-  if(!confirm('Excluir este cliente?'))return
-  DB.set(S.CLIENTES,DB.get(S.CLIENTES).filter(x=>x.id!==id));toast('Cliente removido','ok');render('clientes')
+  const c=DB.get(S.CLIENTES).find(x=>x.id===id);if(!c)return
+  confirmarModal(`Deseja excluir o cliente <strong>${c.nome}</strong>?<br><small style="color:var(--txt3)">Esta ação não pode ser desfeita.</small>`,()=>{
+    DB.set(S.CLIENTES,DB.get(S.CLIENTES).filter(x=>x.id!==id))
+    toast('Cliente excluído','ok');render('clientes')
+  })
 }
 
 // ===== ESTOQUE =====
@@ -1374,6 +1377,12 @@ function openModal(title,body,footer,lg){
 }
 function closeModal(){document.getElementById('modalOv').classList.remove('open');pararGravacao()}
 function handleOvClick(e){if(e.target===document.getElementById('modalOv'))closeModal()}
+let _confirmCb=null
+function confirmarModal(msg,cb){
+  _confirmCb=cb
+  openModal('Confirmação',`<p style="font-size:14px;color:var(--txt);line-height:1.6;padding:6px 0">${msg}</p>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" style="background:var(--bad)" onclick="closeModal();if(_confirmCb){_confirmCb();_confirmCb=null}">Excluir</button>`)
+}
 
 // ===== TOAST =====
 function toast(msg,type=''){
