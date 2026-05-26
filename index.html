@@ -1393,22 +1393,27 @@ function docHead(titulo){
   .cab-contato{padding:12px 16px;text-align:right;font-size:11px;color:#5A3E30;line-height:2;min-width:200px;display:flex;flex-direction:column;justify-content:center}
   .doc-title{background:#C4724A;color:#fff;text-align:center;padding:7px 0;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:18px;border-radius:4px}
   .doc-num{font-family:'Palatino Linotype',serif;font-size:28px;color:#C4724A;text-align:right}
-  .doc-label{font-size:11px;color:#9A7A68;text-transform:uppercase;letter-spacing:1px}
   .section{margin:18px 0}
-  .section-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#9A7A68;border-bottom:1px solid #F0E6D8;padding-bottom:6px;margin-bottom:10px}
-  .cli-block{background:#FBF6F0;border-radius:8px;padding:12px 16px;font-size:13px}
-  .cli-table-wrap{border:1px solid #d4b896;border-radius:4px;overflow:hidden;margin-top:0}
+  .cli-table-wrap{border:1px solid #d4b896;overflow:hidden;margin-bottom:14px}
   .cli-table-title{background:#4A2C1E;color:#fff;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:6px 12px}
   .cli-table{width:100%;border-collapse:collapse;font-size:12px}
   .cli-table th{background:#f5ece2;color:#5A3E30;font-weight:700;padding:6px 10px;white-space:nowrap;width:110px;border:1px solid #e0ccb8}
   .cli-table td{padding:6px 10px;border:1px solid #e0ccb8;color:#1A0E08}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  thead th{background:#F0E6D8;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#5A3E30}
-  tbody td{padding:9px 12px;border-bottom:1px solid #F0E6D8}
-  .totals{margin-top:16px;margin-left:auto;width:260px}
-  .trow{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#5A3E30}
-  .trow.bold{font-weight:700;font-size:16px;color:#1A0E08;border-top:2px solid #C4724A;margin-top:6px;padding-top:8px}
-  .footer{margin-top:40px;border-top:1px solid #F0E6D8;padding-top:16px;font-size:11px;color:#9A7A68;display:flex;justify-content:space-between}
+  .doc-title-row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #1A0E08;padding:12px 0 8px;margin-bottom:6px}
+  .doc-title-num{font-family:'Palatino Linotype',serif;font-size:20px;font-weight:bold;color:#1A0E08;text-transform:uppercase;letter-spacing:.5px}
+  .doc-title-date{font-size:13px;color:#5A3E30;font-weight:600}
+  .doc-msg{font-size:11px;color:#9A7A68;margin-bottom:12px;font-style:italic}
+  .info-bar{display:flex;gap:30px;background:#e8e0d8;padding:8px 12px;font-size:12px;font-weight:700;color:#1A0E08;margin-bottom:14px}
+  .prod-hdr{background:#1A0E08;color:#fff;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  .prod-table{width:100%;border-collapse:collapse;font-size:12px}
+  .prod-table thead th{background:#4A2C1E;color:#fff;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border:1px solid #6A3C2E}
+  .prod-table thead th.r{text-align:right}.prod-table thead th.c{text-align:center}
+  .prod-table tbody tr:nth-child(even){background:#fdf8f3}
+  .prod-table tbody td{padding:8px 10px;border:1px solid #e8d8c8;vertical-align:middle}
+  .prod-table tbody td.r{text-align:right}.prod-table tbody td.c{text-align:center}.prod-table tbody td.n{text-align:center;color:#9A7A68;font-weight:700}
+  .disc-row{display:flex;justify-content:space-between;padding:7px 12px;font-size:12px;color:#5A3E30;background:#f5ece2;border:1px solid #e0ccb8;border-top:none}
+  .total-row{background:#1A0E08;color:#fff;display:flex;justify-content:space-between;padding:10px 12px;font-size:15px;font-weight:700}
+  .footer{margin-top:36px;border-top:1px solid #e0ccb8;padding-top:12px;font-size:11px;color:#9A7A68;display:flex;justify-content:space-between}
   .sign{margin-top:50px;display:flex;gap:40px}
   .sign-line{flex:1;border-top:1px solid #1A0E08;padding-top:6px;font-size:12px;text-align:center;color:#5A3E30}
   @media print{body{padding:16px}.doc{max-width:100%}}</style>
@@ -1425,9 +1430,7 @@ function docHead(titulo){
       </div>
     </div>
     <div class="cab-contato">${contatos.map(c=>`<span>${c}</span>`).join('')}</div>
-  </div>
-  <div class="doc-title">${titulo}</div>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:16px"><div style="text-align:right">`
+  </div>`
 }
 function noivosBlock(noivos){
   if(!noivos)return''
@@ -1444,7 +1447,7 @@ function cliBlock(cli){
 }
 function docFoot(obs,assinatura){
   const e=getEmpresa()
-  return`${obs?`<div class="section"><div class="section-title">Observações</div><div style="font-size:13px;color:#5A3E30">${obs}</div></div>`:''}
+  return`${obs?`<div style="margin:18px 0;padding:12px;border:1px solid #e0ccb8;border-radius:4px;font-size:13px;color:#5A3E30"><strong style="display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#9A7A68">Observações</strong>${obs}</div>`:''}
   ${assinatura?`<div class="sign"><div class="sign-line">Assinatura do Cliente</div><div class="sign-line">Assinatura / Carimbo</div></div>`:''}
   <div class="footer"><span>${e.obs||''}</span><span>${e.site||''} ${e.fone||''}</span></div>
   </div></body></html>`
@@ -1455,14 +1458,39 @@ function imprimirOrc(id){
   const cli=DB.get(S.CLIENTES).find(x=>x.id===o.cliId)||{}
   const w=window.open('','_blank','width=900,height=700')
   w.document.write(docHead('ORÇAMENTO')+
-    `<div class="doc-num">#${id.slice(-4).toUpperCase()}</div>
-    <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(o.data)}<br>Válido até: ${fmtDate(o.validade)}</div></div></div>
-    ${cliBlock(cli)}${noivosBlock(o.noivos)}
-    <div class="section"><div class="section-title">Itens</div>
-    <table><thead><tr><th>Produto / Descrição</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
-    ${o.itens.map(it=>`<tr><td>${it.nome||it.desc||''}</td><td style="text-align:center">${it.qtd}</td><td style="text-align:right">${fmt(it.pu)}</td><td style="text-align:right">${fmt(it.sub)}</td></tr>`).join('')}
-    </tbody></table>
-    <div class="totals"><div class="trow"><span>Subtotal</span><span>${fmt(o.total)}</span></div>${o.desc>0?`<div class="trow"><span>Desconto</span><span>- ${fmt(o.desc)}</span></div>`:''}<div class="trow bold"><span>TOTAL</span><span>${fmt(o.totalF)}</span></div></div></div>`
+    `<div class="doc-title-row">
+      <div class="doc-title-num">ORÇAMENTO Nº #${id.slice(-4).toUpperCase()}</div>
+      <div class="doc-title-date">${fmtDate(o.data)}</div>
+    </div>
+    <p class="doc-msg">Por favor verifique todas as informações antes de assinar o orçamento.</p>
+    <div class="info-bar">
+      <span>VALIDADE: ${fmtDate(o.validade)}</span>
+      ${o.noivos?`<span>EVENTO: ${o.noivos}</span>`:''}
+    </div>
+    ${cliBlock(cli)}
+    <div class="prod-hdr">PRODUTOS</div>
+    <table class="prod-table">
+      <thead><tr>
+        <th class="c" style="width:40px">ITEM</th>
+        <th>NOME / DESCRIÇÃO</th>
+        <th class="c">UND.</th>
+        <th class="c">QTD.</th>
+        <th class="r">VR. UNIT.</th>
+        <th class="r">SUBTOTAL</th>
+      </tr></thead>
+      <tbody>
+        ${o.itens.map((it,i)=>`<tr>
+          <td class="n">${i+1}</td>
+          <td>${it.nome||it.desc||''}</td>
+          <td class="c">Un</td>
+          <td class="c">${it.qtd}</td>
+          <td class="r">${fmt(it.pu)}</td>
+          <td class="r">${fmt(it.sub)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    ${o.desc>0?`<div class="disc-row"><span>Desconto</span><span>- ${fmt(o.desc)}</span></div>`:''}
+    <div class="total-row"><span>TOTAL</span><span>${fmt(o.totalF)}</span></div>`
     +docFoot(o.obs,true))
   w.document.close();setTimeout(()=>w.print(),400)
 }
@@ -1472,15 +1500,39 @@ function imprimirVenda(id){
   const cli=DB.get(S.CLIENTES).find(x=>x.id===vd.cliId)||{}
   const w=window.open('','_blank','width=900,height=700')
   w.document.write(docHead('RECIBO DE VENDA')+
-    `<div class="doc-num">#${id.slice(-4).toUpperCase()}</div>
-    <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(vd.data)}<br>Pgto: ${vd.pgto}</div></div></div>
-    ${cliBlock(cli)}${noivosBlock(vd.noivos)}
-    <div class="section"><div class="section-title">Itens</div>
-    <table><thead><tr><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
-    ${vd.itens.map(it=>`<tr><td>${it.nome}</td><td style="text-align:center">${it.qtd}</td><td style="text-align:right">${fmt(it.pu)}</td><td style="text-align:right">${fmt(it.sub)}</td></tr>`).join('')}
-    </tbody></table>
-    <div class="totals"><div class="trow"><span>Subtotal</span><span>${fmt(vd.total)}</span></div>${vd.desc>0?`<div class="trow"><span>Desconto</span><span>- ${fmt(vd.desc)}</span></div>`:''}<div class="trow bold"><span>TOTAL</span><span>${fmt(vd.totalF)}</span></div></div></div>
-    <div class="section" style="margin-top:20px"><div style="font-size:12px;color:#9A7A68">Status: <strong>${vd.status==='pago'?'✓ Pago':'Pendente'}</strong></div></div>`
+    `<div class="doc-title-row">
+      <div class="doc-title-num">RECIBO Nº #${id.slice(-4).toUpperCase()}</div>
+      <div class="doc-title-date">${fmtDate(vd.data)}</div>
+    </div>
+    <div class="info-bar">
+      <span>PAGAMENTO: ${vd.pgto||'—'}</span>
+      <span>STATUS: ${vd.status==='pago'?'✓ PAGO':'PENDENTE'}</span>
+      ${vd.noivos?`<span>EVENTO: ${vd.noivos}</span>`:''}
+    </div>
+    ${cliBlock(cli)}
+    <div class="prod-hdr">PRODUTOS</div>
+    <table class="prod-table">
+      <thead><tr>
+        <th class="c" style="width:40px">ITEM</th>
+        <th>NOME / DESCRIÇÃO</th>
+        <th class="c">UND.</th>
+        <th class="c">QTD.</th>
+        <th class="r">VR. UNIT.</th>
+        <th class="r">SUBTOTAL</th>
+      </tr></thead>
+      <tbody>
+        ${vd.itens.map((it,i)=>`<tr>
+          <td class="n">${i+1}</td>
+          <td>${it.nome||it.desc||''}</td>
+          <td class="c">Un</td>
+          <td class="c">${it.qtd}</td>
+          <td class="r">${fmt(it.pu)}</td>
+          <td class="r">${fmt(it.sub)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    ${vd.desc>0?`<div class="disc-row"><span>Desconto</span><span>- ${fmt(vd.desc)}</span></div>`:''}
+    <div class="total-row"><span>TOTAL</span><span>${fmt(vd.totalF)}</span></div>`
     +docFoot(vd.obs,false))
   w.document.close();setTimeout(()=>w.print(),400)
 }
@@ -1488,19 +1540,38 @@ function imprimirVenda(id){
 function imprimirOS(id){
   const os=DB.get(S.OS).find(x=>x.id===id);if(!os)return
   const cli=DB.get(S.CLIENTES).find(x=>x.id===os.cliId)||{}
-  const lblOS={aberta:'Aberta',em_andamento:'Em Andamento',concluida:'Concluída',cancelada:'Cancelada'}
+  const lblOS={aberta:'ABERTA',em_andamento:'EM ANDAMENTO',concluida:'CONCLUÍDA',cancelada:'CANCELADA'}
   const w=window.open('','_blank','width=900,height=700')
   w.document.write(docHead('ORDEM DE SERVIÇO')+
-    `<div class="doc-num">OS #${String(os.num).padStart(3,'0')}</div>
-    <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(os.data)}${os.prazo?'<br>Prazo: '+fmtDate(os.prazo):''}</div></div></div>
-    ${cliBlock(cli)}${noivosBlock(os.noivos)}
-    ${os.responsavel?`<div class="section"><div class="section-title">Responsável</div><div style="font-size:13px">${os.responsavel}</div></div>`:''}
-    <div class="section"><div class="section-title">Itens / Serviços</div>
-    <table><thead><tr><th>Item</th><th style="text-align:center">Qtd</th><th style="text-align:right">Valor</th></tr></thead><tbody>
-    ${os.itens.map(it=>`<tr><td>${it.nome}</td><td style="text-align:center">${it.qtd}</td><td style="text-align:right">${fmt(it.sub)}</td></tr>`).join('')}
-    </tbody></table>
-    <div class="totals"><div class="trow bold"><span>TOTAL</span><span>${fmt(os.total)}</span></div></div></div>
-    <div class="section"><div style="font-size:12px;color:#9A7A68">Status: <strong>${lblOS[os.status]||os.status}</strong></div></div>`
+    `<div class="doc-title-row">
+      <div class="doc-title-num">ORDEM DE SERVIÇO Nº ${String(os.num).padStart(3,'0')}</div>
+      <div class="doc-title-date">${fmtDate(os.data)}</div>
+    </div>
+    <div class="info-bar">
+      <span>STATUS: ${lblOS[os.status]||os.status}</span>
+      ${os.prazo?`<span>PRAZO: ${fmtDate(os.prazo)}</span>`:''}
+      ${os.noivos?`<span>EVENTO: ${os.noivos}</span>`:''}
+    </div>
+    ${cliBlock(cli)}
+    ${os.responsavel?`<div style="margin-bottom:14px;padding:8px 12px;background:#f5ece2;border:1px solid #e0ccb8;font-size:12px"><strong>Responsável:</strong> ${os.responsavel}</div>`:''}
+    <div class="prod-hdr">ITENS / SERVIÇOS</div>
+    <table class="prod-table">
+      <thead><tr>
+        <th class="c" style="width:40px">ITEM</th>
+        <th>DESCRIÇÃO</th>
+        <th class="c">QTD.</th>
+        <th class="r">VALOR</th>
+      </tr></thead>
+      <tbody>
+        ${os.itens.map((it,i)=>`<tr>
+          <td class="n">${i+1}</td>
+          <td>${it.nome||it.desc||''}</td>
+          <td class="c">${it.qtd}</td>
+          <td class="r">${fmt(it.sub)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="total-row"><span>TOTAL</span><span>${fmt(os.total)}</span></div>`
     +docFoot(os.obs,true))
   w.document.close();setTimeout(()=>w.print(),400)
 }
