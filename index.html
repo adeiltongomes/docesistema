@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DoceSistema — Gestão de Confeitaria</title>
 <style>
-:root{--choc:#2D1222;--choc2:#3D1830;--choc3:#52234A;--cara:#C4849A;--cara2:#D4A0B0;--cream:#FDF5F7;--cream2:#F0DDE5;--ivory:#FEFBFC;--txt:#2D1222;--txt2:#6B3D52;--txt3:#9A7080;--white:#FFFFFF;--ok:#4A8A65;--warn:#C4724A;--bad:#B84040;--sw:260px;--hh:64px;--r:12px;--sh:0 2px 16px rgba(45,18,34,.08);--shm:0 4px 28px rgba(45,18,34,.14)}
+:root{--choc:#1C1A18;--choc2:#2A2724;--choc3:#3A3632;--cara:#B8912A;--cara2:#D4AD50;--cream:#F8F7F4;--cream2:#EDEBE6;--ivory:#FDFCFA;--txt:#1C1A18;--txt2:#52493E;--txt3:#8A7E6E;--white:#FFFFFF;--ok:#3D8A5E;--warn:#C4724A;--bad:#B84040;--sw:260px;--hh:64px;--r:12px;--sh:0 2px 16px rgba(28,26,24,.09);--shm:0 4px 28px rgba(28,26,24,.16)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Trebuchet MS','Calibri',sans-serif;background:var(--cream);color:var(--txt);min-height:100vh;display:flex}
 .sidebar{width:var(--sw);background:var(--choc);min-height:100vh;position:fixed;left:0;top:0;display:flex;flex-direction:column;z-index:100;transition:transform .3s}
@@ -67,9 +67,9 @@ tbody tr:last-child{border-bottom:none}
 tbody td{padding:11px 13px;color:var(--txt)}
 .bdg{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .bdg-g{background:#E8F4EE;color:#2E7D52}.bdg-y{background:#FFF3E0;color:#B05000}.bdg-r{background:#FCEAEA;color:var(--bad)}.bdg-b{background:#E3F2FD;color:#1565C0}.bdg-gr{background:var(--cream2);color:var(--txt2)}
-.modal-ov{position:fixed;inset:0;background:rgba(45,18,34,.52);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;padding:16px}
+.modal-ov{position:fixed;inset:0;background:rgba(28,26,24,.52);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;padding:16px}
 .modal-ov.open{opacity:1;pointer-events:all}
-.modal{background:var(--white);border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(45,18,34,.28);transform:translateY(14px) scale(.98);transition:transform .2s ease}
+.modal{background:var(--white);border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(28,26,24,.28);transform:translateY(14px) scale(.98);transition:transform .2s ease}
 .modal-ov.open .modal{transform:translateY(0) scale(1)}
 .modal-lg{max-width:700px}
 .mhdr{padding:18px 22px 14px;border-bottom:1px solid var(--cream2);display:flex;align-items:center;justify-content:space-between}
@@ -320,7 +320,7 @@ tbody td{padding:11px 13px;color:var(--txt)}
     <div class="page" id="page-empresa"></div>
   </div>
 </main>
-<div id="clientViewOverlay" style="display:none;position:fixed;inset:0;z-index:999;background:#FDF5F7;overflow-y:auto"></div>
+<div id="clientViewOverlay" style="display:none;position:fixed;inset:0;z-index:999;background:#F8F7F4;overflow-y:auto"></div>
 
 <div class="modal-ov" id="modalOv" onclick="handleOvClick(event)">
   <div class="modal" id="modalBox">
@@ -1890,7 +1890,7 @@ function verReceita(id){
     ${r.preparo?`<div style="font-size:13px;color:var(--txt);line-height:1.7;white-space:pre-wrap;margin-bottom:10px">${r.preparo}</div>`:''}
     ${r.audioPrep?`<div style="background:var(--cream);border-radius:8px;padding:10px 12px;margin-bottom:14px"><div style="font-size:11px;color:var(--txt3);margin-bottom:6px;font-weight:600">🎤 Áudio do Modo de Preparo</div><audio controls src="${r.audioPrep.data}" style="width:100%;height:36px"></audio></div>`:'<div style="margin-bottom:14px"></div>'}`:''}
     ${r.dicas?`
-    <div style="background:#FFF0F5;border-left:3px solid var(--cara);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:14px">
+    <div style="background:#FDF8EE;border-left:3px solid var(--cara);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;color:var(--cara);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Dicas</div>
       <div style="font-size:13px;color:var(--txt2);line-height:1.6">${r.dicas}</div>
     </div>`:''}
@@ -1916,42 +1916,42 @@ function docHead(titulo){
     e.site||''
   ].filter(Boolean)
   return`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${titulo}</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Trebuchet MS',sans-serif;color:#2D1222;background:#fff;padding:28px}
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Trebuchet MS',sans-serif;color:#1C1A18;background:#fff;padding:28px}
   .doc{max-width:800px;margin:0 auto}
-  .cab{display:flex;align-items:stretch;border:1px solid #D4AABB;border-radius:6px;margin-bottom:22px;overflow:hidden}
-  .cab-logo{display:flex;align-items:center;justify-content:center;padding:14px 16px;border-right:1px solid #D4AABB;min-width:110px;background:#fdf8f3}
+  .cab{display:flex;align-items:stretch;border:1px solid #CCC8C0;border-radius:6px;margin-bottom:22px;overflow:hidden}
+  .cab-logo{display:flex;align-items:center;justify-content:center;padding:14px 16px;border-right:1px solid #CCC8C0;min-width:110px;background:#fdf8f3}
   .cab-logo img{max-height:80px;max-width:100px;object-fit:contain}
-  .cab-logo-txt{font-family:'Palatino Linotype',serif;font-size:15px;font-weight:bold;color:#2D1222;text-align:center}
-  .cab-info{flex:1;padding:12px 16px;border-right:1px solid #D4AABB}
-  .cab-nome{font-family:'Palatino Linotype',serif;font-size:16px;font-weight:bold;color:#2D1222;margin-bottom:3px}
-  .cab-razao{font-size:11px;color:#9A7080;margin-bottom:4px}
-  .cab-det{font-size:11px;color:#6B3D52;line-height:1.9}
-  .cab-contato{padding:12px 16px;text-align:right;font-size:11px;color:#6B3D52;line-height:2;min-width:200px;display:flex;flex-direction:column;justify-content:center}
-  .doc-title{background:#C4849A;color:#fff;text-align:center;padding:7px 0;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:18px;border-radius:4px}
-  .doc-num{font-family:'Palatino Linotype',serif;font-size:28px;color:#C4849A;text-align:right}
+  .cab-logo-txt{font-family:'Palatino Linotype',serif;font-size:15px;font-weight:bold;color:#1C1A18;text-align:center}
+  .cab-info{flex:1;padding:12px 16px;border-right:1px solid #CCC8C0}
+  .cab-nome{font-family:'Palatino Linotype',serif;font-size:16px;font-weight:bold;color:#1C1A18;margin-bottom:3px}
+  .cab-razao{font-size:11px;color:#8A7E6E;margin-bottom:4px}
+  .cab-det{font-size:11px;color:#52493E;line-height:1.9}
+  .cab-contato{padding:12px 16px;text-align:right;font-size:11px;color:#52493E;line-height:2;min-width:200px;display:flex;flex-direction:column;justify-content:center}
+  .doc-title{background:#B8912A;color:#fff;text-align:center;padding:7px 0;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:18px;border-radius:4px}
+  .doc-num{font-family:'Palatino Linotype',serif;font-size:28px;color:#B8912A;text-align:right}
   .section{margin:18px 0}
-  .cli-table-wrap{border:1px solid #D4AABB;overflow:hidden;margin-bottom:14px}
+  .cli-table-wrap{border:1px solid #CCC8C0;overflow:hidden;margin-bottom:14px}
   .cli-table-title{background:#4A2C1E;color:#fff;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:6px 12px}
   .cli-table{width:100%;border-collapse:collapse;font-size:12px}
-  .cli-table th{background:#F5E8EF;color:#6B3D52;font-weight:700;padding:6px 10px;white-space:nowrap;width:110px;border:1px solid #DEC8D5}
-  .cli-table td{padding:6px 10px;border:1px solid #DEC8D5;color:#2D1222}
-  .doc-title-row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #2D1222;padding:12px 0 8px;margin-bottom:6px}
-  .doc-title-num{font-family:'Palatino Linotype',serif;font-size:20px;font-weight:bold;color:#2D1222;text-transform:uppercase;letter-spacing:.5px}
-  .doc-title-date{font-size:13px;color:#6B3D52;font-weight:600}
-  .doc-msg{font-size:11px;color:#9A7080;margin-bottom:12px;font-style:italic}
-  .info-bar{display:flex;gap:30px;background:#EAD8E4;padding:8px 12px;font-size:12px;font-weight:700;color:#2D1222;margin-bottom:14px}
-  .prod-hdr{background:#2D1222;color:#fff;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  .cli-table th{background:#F0EDE8;color:#52493E;font-weight:700;padding:6px 10px;white-space:nowrap;width:110px;border:1px solid #DDD9D2}
+  .cli-table td{padding:6px 10px;border:1px solid #DDD9D2;color:#1C1A18}
+  .doc-title-row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #1C1A18;padding:12px 0 8px;margin-bottom:6px}
+  .doc-title-num{font-family:'Palatino Linotype',serif;font-size:20px;font-weight:bold;color:#1C1A18;text-transform:uppercase;letter-spacing:.5px}
+  .doc-title-date{font-size:13px;color:#52493E;font-weight:600}
+  .doc-msg{font-size:11px;color:#8A7E6E;margin-bottom:12px;font-style:italic}
+  .info-bar{display:flex;gap:30px;background:#E8E3DC;padding:8px 12px;font-size:12px;font-weight:700;color:#1C1A18;margin-bottom:14px}
+  .prod-hdr{background:#1C1A18;color:#fff;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
   .prod-table{width:100%;border-collapse:collapse;font-size:12px}
   .prod-table thead th{background:#4A2C1E;color:#fff;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border:1px solid #6A3C2E}
   .prod-table thead th.r{text-align:right}.prod-table thead th.c{text-align:center}
   .prod-table tbody tr:nth-child(even){background:#fdf8f3}
-  .prod-table tbody td{padding:8px 10px;border:1px solid #EDD5E2;vertical-align:middle}
-  .prod-table tbody td.r{text-align:right}.prod-table tbody td.c{text-align:center}.prod-table tbody td.n{text-align:center;color:#9A7080;font-weight:700}
-  .disc-row{display:flex;justify-content:space-between;padding:7px 12px;font-size:12px;color:#6B3D52;background:#F5E8EF;border:1px solid #DEC8D5;border-top:none}
-  .total-row{background:#2D1222;color:#fff;display:flex;justify-content:space-between;padding:10px 12px;font-size:15px;font-weight:700}
-  .footer{margin-top:36px;border-top:1px solid #DEC8D5;padding-top:12px;font-size:11px;color:#9A7080;display:flex;justify-content:space-between}
+  .prod-table tbody td{padding:8px 10px;border:1px solid #E8E4DC;vertical-align:middle}
+  .prod-table tbody td.r{text-align:right}.prod-table tbody td.c{text-align:center}.prod-table tbody td.n{text-align:center;color:#8A7E6E;font-weight:700}
+  .disc-row{display:flex;justify-content:space-between;padding:7px 12px;font-size:12px;color:#52493E;background:#F0EDE8;border:1px solid #DDD9D2;border-top:none}
+  .total-row{background:#1C1A18;color:#fff;display:flex;justify-content:space-between;padding:10px 12px;font-size:15px;font-weight:700}
+  .footer{margin-top:36px;border-top:1px solid #DDD9D2;padding-top:12px;font-size:11px;color:#8A7E6E;display:flex;justify-content:space-between}
   .sign{margin-top:50px;display:flex;gap:40px}
-  .sign-line{flex:1;border-top:1px solid #2D1222;padding-top:6px;font-size:12px;text-align:center;color:#6B3D52}
+  .sign-line{flex:1;border-top:1px solid #1C1A18;padding-top:6px;font-size:12px;text-align:center;color:#52493E}
   @media print{body{padding:16px}.doc{max-width:100%}}</style>
   </head><body><div class="doc">
   <div class="cab">
@@ -1970,7 +1970,7 @@ function docHead(titulo){
 }
 function noivosBlock(noivos){
   if(!noivos)return''
-  return`<div style="margin:0 0 16px;padding:10px 16px;background:#FFF0F5;border-left:4px solid #C4849A;border-radius:0 6px 6px 0;font-size:13px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#9A7080;display:block;margin-bottom:3px">Noivos / Evento</span><strong style="font-size:15px;color:#2D1222">${noivos}</strong></div>`
+  return`<div style="margin:0 0 16px;padding:10px 16px;background:#FDF8EE;border-left:4px solid #B8912A;border-radius:0 6px 6px 0;font-size:13px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8A7E6E;display:block;margin-bottom:3px">Noivos / Evento</span><strong style="font-size:15px;color:#1C1A18">${noivos}</strong></div>`
 }
 function cliBlock(cli){
   const rows=[]
@@ -1983,7 +1983,7 @@ function cliBlock(cli){
 }
 function docFoot(obs,assinatura){
   const e=getEmpresa()
-  return`${obs?`<div style="margin:18px 0;padding:12px;border:1px solid #DEC8D5;border-radius:4px;font-size:13px;color:#6B3D52"><strong style="display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#9A7080">Observações</strong>${obs}</div>`:''}
+  return`${obs?`<div style="margin:18px 0;padding:12px;border:1px solid #DDD9D2;border-radius:4px;font-size:13px;color:#52493E"><strong style="display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#8A7E6E">Observações</strong>${obs}</div>`:''}
   ${assinatura?`<div class="sign"><div class="sign-line">Assinatura do Cliente</div><div class="sign-line">Assinatura / Carimbo</div></div>`:''}
   <div class="footer"><span>${e.obs||''}</span><span>${e.site||''} ${e.fone||''}</span></div>
   </div></body></html>`
@@ -2089,7 +2089,7 @@ function imprimirOS(id){
       ${os.noivos?`<span>EVENTO: ${os.noivos}</span>`:''}
     </div>
     ${cliBlock(cli)}
-    ${os.responsavel?`<div style="margin-bottom:14px;padding:8px 12px;background:#F5E8EF;border:1px solid #DEC8D5;font-size:12px"><strong>Responsável:</strong> ${os.responsavel}</div>`:''}
+    ${os.responsavel?`<div style="margin-bottom:14px;padding:8px 12px;background:#F0EDE8;border:1px solid #DDD9D2;font-size:12px"><strong>Responsável:</strong> ${os.responsavel}</div>`:''}
     <div class="prod-hdr">ITENS / SERVIÇOS</div>
     <table class="prod-table">
       <thead><tr>
@@ -2338,21 +2338,21 @@ function imprimirRelatorio(){
   const sai=ts.filter(t=>t.tipo==='saida').reduce((a,t)=>a+t.val,0)
   const w=window.open('','_blank','width=900,height=700')
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Trebuchet MS',sans-serif;color:#2D1222;padding:32px}
-  h1{font-family:'Palatino Linotype',serif;font-size:20px;color:#C4849A;margin-bottom:4px}
-  h2{font-family:'Palatino Linotype',serif;font-size:15px;color:#2D1222;margin:20px 0 10px;border-bottom:1px solid #F0DDE5;padding-bottom:6px}
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Trebuchet MS',sans-serif;color:#1C1A18;padding:32px}
+  h1{font-family:'Palatino Linotype',serif;font-size:20px;color:#B8912A;margin-bottom:4px}
+  h2{font-family:'Palatino Linotype',serif;font-size:15px;color:#1C1A18;margin:20px 0 10px;border-bottom:1px solid #EDEBE6;padding-bottom:6px}
   table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px}
-  th{background:#F0DDE5;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase}
-  td{padding:7px 10px;border-bottom:1px solid #F0DDE5}
+  th{background:#EDEBE6;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase}
+  td{padding:7px 10px;border-bottom:1px solid #EDEBE6}
   .stats{display:flex;gap:12px;margin-bottom:16px}
-  .stat-box{flex:1;background:#FDF5F7;border-radius:8px;padding:12px;border-left:3px solid #C4849A}
+  .stat-box{flex:1;background:#F8F7F4;border-radius:8px;padding:12px;border-left:3px solid #B8912A}
   .stat-box.g{border-color:#4A8A65}.stat-box.r{border-color:#B84040}
-  .slbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9A7080}
-  .sval{font-family:'Palatino Linotype',serif;font-size:20px;color:#2D1222}
+  .slbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#8A7E6E}
+  .sval{font-family:'Palatino Linotype',serif;font-size:20px;color:#1C1A18}
   @media print{body{padding:16px}}</style></head><body>
-  <div style="border-bottom:3px solid #C4849A;padding-bottom:12px;margin-bottom:20px">
+  <div style="border-bottom:3px solid #B8912A;padding-bottom:12px;margin-bottom:20px">
     <h1>${nome} — Relatório de Gestão</h1>
-    <div style="font-size:12px;color:#9A7080">Período: ${fmtDate(de)} a ${fmtDate(ate)}</div>
+    <div style="font-size:12px;color:#8A7E6E">Período: ${fmtDate(de)} a ${fmtDate(ate)}</div>
   </div>
   <div class="stats">
     <div class="stat-box g"><div class="slbl">Faturamento</div><div class="sval">${fmt(vs.reduce((a,v)=>a+v.totalF,0))}</div></div>
