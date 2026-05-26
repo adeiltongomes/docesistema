@@ -1389,6 +1389,11 @@ function docHead(titulo){
   .section{margin:18px 0}
   .section-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#9A7A68;border-bottom:1px solid #F0E6D8;padding-bottom:6px;margin-bottom:10px}
   .cli-block{background:#FBF6F0;border-radius:8px;padding:12px 16px;font-size:13px}
+  .cli-table-wrap{border:1px solid #d4b896;border-radius:4px;overflow:hidden;margin-top:0}
+  .cli-table-title{background:#4A2C1E;color:#fff;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:6px 12px}
+  .cli-table{width:100%;border-collapse:collapse;font-size:12px}
+  .cli-table th{background:#f5ece2;color:#5A3E30;font-weight:700;padding:6px 10px;white-space:nowrap;width:110px;border:1px solid #e0ccb8}
+  .cli-table td{padding:6px 10px;border:1px solid #e0ccb8;color:#1A0E08}
   table{width:100%;border-collapse:collapse;font-size:13px}
   thead th{background:#F0E6D8;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#5A3E30}
   tbody td{padding:9px 12px;border-bottom:1px solid #F0E6D8}
@@ -1416,6 +1421,14 @@ function docHead(titulo){
   <div class="doc-title">${titulo}</div>
   <div style="display:flex;justify-content:flex-end;margin-bottom:16px"><div style="text-align:right">`
 }
+function cliBlock(cli){
+  const rows=[]
+  rows.push(`<tr><th>Nome:</th><td>${cli.nome||'—'}</td><th>Telefone:</th><td>${cli.fone||'—'}</td></tr>`)
+  if(cli.email||cli.cidade)rows.push(`<tr><th>E-mail:</th><td>${cli.email||'—'}</td><th>Cidade/UF:</th><td>${cli.cidade||'—'}</td></tr>`)
+  if(cli.end)rows.push(`<tr><th>Endereço:</th><td colspan="3">${cli.end}</td></tr>`)
+  if(cli.obs)rows.push(`<tr><th>Observação:</th><td colspan="3">${cli.obs}</td></tr>`)
+  return`<div class="section"><div class="cli-table-wrap"><div class="cli-table-title">Dados do Cliente</div><table class="cli-table">${rows.join('')}</table></div></div>`
+}
 function docFoot(obs,assinatura){
   const e=getEmpresa()
   return`${obs?`<div class="section"><div class="section-title">Observações</div><div style="font-size:13px;color:#5A3E30">${obs}</div></div>`:''}
@@ -1431,8 +1444,7 @@ function imprimirOrc(id){
   w.document.write(docHead('ORÇAMENTO')+
     `<div class="doc-num">#${id.slice(-4).toUpperCase()}</div>
     <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(o.data)}<br>Válido até: ${fmtDate(o.validade)}</div></div></div>
-    <div class="section"><div class="section-title">Cliente</div>
-    <div class="cli-block"><strong>${cli.nome||'—'}</strong><br>${[cli.fone,cli.email,cli.end,cli.cidade].filter(Boolean).join(' · ')}</div></div>
+    ${cliBlock(cli)}
     <div class="section"><div class="section-title">Itens</div>
     <table><thead><tr><th>Produto / Descrição</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
     ${o.itens.map(it=>`<tr><td>${it.nome||it.desc||''}</td><td style="text-align:center">${it.qtd}</td><td style="text-align:right">${fmt(it.pu)}</td><td style="text-align:right">${fmt(it.sub)}</td></tr>`).join('')}
@@ -1449,8 +1461,7 @@ function imprimirVenda(id){
   w.document.write(docHead('RECIBO DE VENDA')+
     `<div class="doc-num">#${id.slice(-4).toUpperCase()}</div>
     <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(vd.data)}<br>Pgto: ${vd.pgto}</div></div></div>
-    <div class="section"><div class="section-title">Cliente</div>
-    <div class="cli-block"><strong>${cli.nome||clienteNome(vd.cliId)}</strong><br>${[cli.fone,cli.email].filter(Boolean).join(' · ')}</div></div>
+    ${cliBlock(cli)}
     <div class="section"><div class="section-title">Itens</div>
     <table><thead><tr><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
     ${vd.itens.map(it=>`<tr><td>${it.nome}</td><td style="text-align:center">${it.qtd}</td><td style="text-align:right">${fmt(it.pu)}</td><td style="text-align:right">${fmt(it.sub)}</td></tr>`).join('')}
@@ -1469,8 +1480,7 @@ function imprimirOS(id){
   w.document.write(docHead('ORDEM DE SERVIÇO')+
     `<div class="doc-num">OS #${String(os.num).padStart(3,'0')}</div>
     <div style="font-size:12px;color:#9A7A68">Data: ${fmtDate(os.data)}${os.prazo?'<br>Prazo: '+fmtDate(os.prazo):''}</div></div></div>
-    <div class="section"><div class="section-title">Cliente</div>
-    <div class="cli-block"><strong>${cli.nome||clienteNome(os.cliId)}</strong><br>${[cli.fone,cli.email,cli.end,cli.cidade].filter(Boolean).join(' · ')}</div></div>
+    ${cliBlock(cli)}
     ${os.responsavel?`<div class="section"><div class="section-title">Responsável</div><div style="font-size:13px">${os.responsavel}</div></div>`:''}
     <div class="section"><div class="section-title">Itens / Serviços</div>
     <table><thead><tr><th>Item</th><th style="text-align:center">Qtd</th><th style="text-align:right">Valor</th></tr></thead><tbody>
