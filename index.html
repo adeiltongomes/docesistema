@@ -1188,7 +1188,7 @@ function renderCmpTable(){
 }
 
 function novaCompra(){
-  tempItems=[{pId:'',nome:'',qtd:1,und:'',pu:0,sub:0}];editId=null;tempAnexo=null
+  tempItems=[{pId:'',nome:'',qtd:1,und:'',valor:0,sub:0}];editId=null;tempAnexo=null
   const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
   openModal('Registrar Compra',`
     <div class="frow"><div class="fg"><label>Fornecedor *</label><input id="cForn" placeholder="Nome do fornecedor"></div>
@@ -1214,7 +1214,7 @@ function novaCompra(){
     </div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
     <div class="items-tbl">
-      <div class="items-hdr" style="grid-template-columns:3fr 70px 70px 1.2fr 1fr 36px"><span>Ingrediente</span><span>Qtd</span><span>Und</span><span>Preço/Und</span><span>Subtotal</span><span></span></div>
+      <div class="items-hdr" style="grid-template-columns:3fr 65px 60px 110px 110px 36px"><span>Ingrediente</span><span>Qtd</span><span>Und</span><span>Valor Total Pago</span><span>Custo/Unidade</span><span></span></div>
       <div id="cItens"></div>
     </div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
@@ -1228,24 +1228,25 @@ function novaCompra(){
 function renderCItens(ings){
   const el=document.getElementById('cItens');if(!el)return
   if(!ings)ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
-  const CMP_UNIDS=['g','kg','ml','L','un','cx','pct','kg','mg']
-  el.innerHTML=tempItems.map((it,i)=>`
-    <div class="items-row" style="grid-template-columns:3fr 70px 70px 1.2fr 1fr 36px">
+  el.innerHTML=tempItems.map((it,i)=>{
+    const custoStr=calcCustoUndStr(it)
+    return`
+    <div class="items-row" style="grid-template-columns:3fr 65px 60px 110px 110px 36px">
       <select onchange="selectIngCmp(${i},this.value)" style="padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
         <option value="">Selecionar...</option>
         ${ings.map(p=>`<option value="${p.id}" ${it.pId===p.id?'selected':''}>${p.nome}</option>`).join('')}
         <option value="_free" ${it.pId==='_free'?'selected':''}>Outro (livre)</option>
         <option value="__novo__">＋ Novo ingrediente...</option>
       </select>
-      <input type="number" value="${it.qtd||1}" min="0.01" step="0.01" oninput="updateCmpItem(${i},'qtd',this.value)" onblur="renderCItens()">
-      <select onchange="tempItems[${i}].und=this.value" style="padding:5px 6px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%">
+      <input type="number" value="${it.qtd||''}" min="0.01" step="0.01" placeholder="Qtd" oninput="updateCmpItem(${i},'qtd',this.value)" onblur="renderCItens()">
+      <select onchange="updateCmpItem(${i},'und',0);tempItems[${i}].und=this.value;renderCItens()" style="padding:5px 4px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%">
         <option value="">—</option>
         ${['g','kg','mg','ml','L','un','cx','pct'].map(u=>`<option value="${u}" ${it.und===u?'selected':''}>${u}</option>`).join('')}
       </select>
-      <input type="number" value="${it.pu||0}" min="0" step="0.01" oninput="updateCmpItem(${i},'pu',this.value)" onblur="renderCItens()">
-      <span id="cSub_${i}" style="font-size:12px;color:var(--txt2);font-weight:600">${fmt(it.sub||0)}</span>
+      <input type="number" value="${it.valor||''}" min="0" step="0.01" placeholder="R$ pago" oninput="updateCmpItem(${i},'valor',this.value)" onblur="renderCItens()">
+      <span id="cCusto_${i}" style="font-size:11px;font-weight:700;color:${custoStr!=='—'?'var(--ok)':'var(--txt3)'};display:flex;align-items:center;padding:0 4px">${custoStr}</span>
       <button class="btn-ic btn-d" onclick="removeCmpItem(${i})" style="padding:4px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    </div>
+    </div>`}).join('')
     ${it._novoMode?`<div style="background:var(--cream);border:1.5px solid var(--cara);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px">
       <div style="font-size:11px;font-weight:700;color:var(--cara);text-transform:uppercase;letter-spacing:.5px">Novo Ingrediente</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -1295,15 +1296,29 @@ function cancelarNovoIngCmp(i){
   tempItems[i]._novoMode=false;tempItems[i].pId='';tempItems[i].nome=''
   renderCItens()
 }
+function calcCustoUndStr(it){
+  const qtd=parseFloat(it.qtd)||0;const valor=parseFloat(it.valor)||0;const und=it.und||''
+  if(!qtd||!valor||!und)return'—'
+  const custo=valor/qtd
+  // mostra em und do estoque se tiver pId vinculado
+  if(it.pId&&it.pId!=='_free'&&it.pId!==''){
+    const prod=DB.get(S.PRODUTOS).find(p=>p.id===it.pId)
+    if(prod&&prod.un&&prod.un!==und){
+      const qtdEmEst=converterUnidade(qtd,und,prod.un)
+      if(qtdEmEst>0)return`R$${(valor/qtdEmEst).toFixed(4)}/${prod.un}`
+    }
+  }
+  return`R$${custo.toFixed(4)}/${und}`
+}
 function updateCmpItem(i,f,v){
-  tempItems[i][f]=parseFloat(v)||0
-  tempItems[i].sub=(tempItems[i].qtd||1)*(tempItems[i].pu||0)
-  const span=document.getElementById('cSub_'+i)
-  if(span)span.textContent=fmt(tempItems[i].sub)
+  if(f!=='und')tempItems[i][f]=parseFloat(v)||0
+  tempItems[i].sub=tempItems[i].valor||0
+  const custoEl=document.getElementById('cCusto_'+i)
+  if(custoEl){const s=calcCustoUndStr(tempItems[i]);custoEl.textContent=s;custoEl.style.color=s!=='—'?'var(--ok)':'var(--txt3)'}
   calcCmpTotals()
 }
-function addCmpItem(){tempItems.push({pId:'',nome:'',qtd:1,und:'',pu:0,sub:0});renderCItens();calcCmpTotals()}
-function removeCmpItem(i){if(tempItems.length>1)tempItems.splice(i,1);else tempItems=[{pId:'',nome:'',qtd:1,und:'',pu:0,sub:0}];renderCItens();calcCmpTotals()}
+function addCmpItem(){tempItems.push({pId:'',nome:'',qtd:1,und:'',valor:0,sub:0});renderCItens();calcCmpTotals()}
+function removeCmpItem(i){if(tempItems.length>1)tempItems.splice(i,1);else tempItems=[{pId:'',nome:'',qtd:1,und:'',valor:0,sub:0}];renderCItens();calcCmpTotals()}
 function calcCmpTotals(){
   const total=tempItems.reduce((a,x)=>a+(x.sub||0),0)
   const parc=parseInt((document.getElementById('cParc')||{}).value||'1')||1
@@ -1319,7 +1334,10 @@ function calcCmpTotals(){
 }
 function editCompra(id){
   const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
-  editId=id;tempItems=JSON.parse(JSON.stringify(c.itens));tempAnexo=c.notaAnexo||null
+  editId=id
+  // migrar itens antigos (pu→valor)
+  tempItems=JSON.parse(JSON.stringify(c.itens)).map(it=>({...it,valor:it.valor!=null?it.valor:(it.pu||0)*(it.qtd||0),sub:it.valor!=null?it.valor:(it.pu||0)*(it.qtd||0)}))
+  tempAnexo=c.notaAnexo||null
   const ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
   const pgtos=['Pix','Boleto','Dinheiro','Cartão','Transferência']
   openModal('Editar Compra',`
@@ -1337,7 +1355,7 @@ function editCompra(id){
       <div id="cParcVal" style="padding:9px 12px;background:var(--cream);border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-weight:700;color:var(--cara)">${(c.parcelas||1)>1?fmt(c.total/(c.parcelas||1)):'—'}</div>
     </div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
-    <div class="items-tbl"><div class="items-hdr" style="grid-template-columns:3fr 70px 70px 1.2fr 1fr 36px"><span>Ingrediente</span><span>Qtd</span><span>Und</span><span>Preço/Und</span><span>Subtotal</span><span></span></div><div id="cItens"></div></div>
+    <div class="items-tbl"><div class="items-hdr" style="grid-template-columns:3fr 65px 60px 110px 110px 36px"><span>Ingrediente</span><span>Qtd</span><span>Und</span><span>Valor Total Pago</span><span>Custo/Unidade</span><span></span></div><div id="cItens"></div></div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
     <div style="margin-top:12px" id="cTotals"></div>
     <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="cObs" placeholder="Observações...">${c.obs||''}</textarea></div>
@@ -1359,13 +1377,13 @@ function salvarCompra(){
   const cmps=DB.get(S.COMPRAS);const prods=DB.get(S.PRODUTOS);const trans=DB.get(S.TRANS)
   if(editId){
     const old=cmps.find(x=>x.id===editId)
-    // reverter estoque da compra antiga
-    if(old)old.itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0)prods[i].estoque=Math.max(0,prods[i].estoque-it.qtd)}})
+    // reverter estoque da compra antiga (com conversão de unidade)
+    if(old)old.itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){const qr=it.und?converterUnidade(it.qtd,it.und,prods[i].un)??it.qtd:it.qtd;prods[i].estoque=Math.max(0,prods[i].estoque-qr)}}})
     const idx=cmps.findIndex(x=>x.id===editId)
     cmps[idx]={id:editId,forn:forn.trim(),data,itens,total,pgto,parcelas,valorParcela,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     DB.set(S.COMPRAS,cmps)
-    // aplicar novo estoque e atualizar custo unitário com conversão de unidade
-    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){const qtdConv=it.und?converterUnidade(it.qtd,it.und,prods[i].un)??it.qtd:it.qtd;prods[i].estoque+=qtdConv;if(it.pu>0){const W={'mg':.001,'g':1,'kg':1000},V={'ml':1,'L':1000};const pf=W[it.und]||V[it.und]||1,sf=W[prods[i].un]||V[prods[i].un]||1;prods[i].custo=it.pu*(sf/pf)}}}})
+    // aplicar estoque e custo: custo = valor_total / qtd_em_unidade_do_estoque
+    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){const qtdEst=it.und?converterUnidade(it.qtd,it.und,prods[i].un)??it.qtd:it.qtd;prods[i].estoque+=qtdEst;if(it.valor>0&&qtdEst>0)prods[i].custo=it.valor/qtdEst}}})
     DB.set(S.PRODUTOS,prods)
     const ti=trans.findIndex(x=>x.ref===editId)
     if(ti>=0){trans[ti]={...trans[ti],val:total,data,pgto,desc:forn.trim()};DB.set(S.TRANS,trans)}
@@ -1373,7 +1391,8 @@ function salvarCompra(){
   }else{
     const cmp={id:genId(),forn:forn.trim(),data,itens,total,pgto,parcelas,valorParcela,nf:(document.getElementById('cNf')||{}).value,obs:(document.getElementById('cObs')||{}).value,notaAnexo:tempAnexo}
     cmps.push(cmp);DB.set(S.COMPRAS,cmps)
-    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){const qtdConv=it.und?converterUnidade(it.qtd,it.und,prods[i].un)??it.qtd:it.qtd;prods[i].estoque+=qtdConv;if(it.pu>0){const W={'mg':.001,'g':1,'kg':1000},V={'ml':1,'L':1000};const pf=W[it.und]||V[it.und]||1,sf=W[prods[i].un]||V[prods[i].un]||1;prods[i].custo=it.pu*(sf/pf)}}}})
+    // custo = valor_total / qtd_em_unidade_do_estoque
+    itens.forEach(it=>{if(it.pId&&it.pId!=='_free'){const i=prods.findIndex(x=>x.id===it.pId);if(i>=0){const qtdEst=it.und?converterUnidade(it.qtd,it.und,prods[i].un)??it.qtd:it.qtd;prods[i].estoque+=qtdEst;if(it.valor>0&&qtdEst>0)prods[i].custo=it.valor/qtdEst}}})
     DB.set(S.PRODUTOS,prods)
     trans.push({id:genId(),tipo:'saida',cat:'Compra de insumos',desc:forn.trim(),val:total,data,pgto,ref:cmp.id})
     DB.set(S.TRANS,trans)
@@ -1910,10 +1929,14 @@ function renderIngredientes(){
   const estoqueIngs=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo!==false)
   const stl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%'
   el.innerHTML=tempIng.map((ing,i)=>{
+    const prod=ing.pId&&ing.pId!=='_custom'?estoqueIngs.find(p=>p.id===ing.pId):null
+    const qtdNum=parseFloat(ing.qtd)||0
+    const qtdConv=prod?converterUnidade(qtdNum,ing.und,prod.un):null
+    const custoInit=prod&&prod.custo>0&&qtdConv!=null?fmt(qtdConv*prod.custo):'—'
     return`
-    <div style="display:grid;grid-template-columns:70px 90px 1fr 30px;gap:6px;align-items:center;margin-bottom:5px">
-      <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value" style="${stl}">
-      <select onchange="tempIng[${i}].und=this.value" style="${stl}">
+    <div style="display:grid;grid-template-columns:70px 90px 1fr 80px 30px;gap:6px;align-items:center;margin-bottom:5px">
+      <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value;atualizarCustoIngred(${i})" style="${stl}">
+      <select onchange="tempIng[${i}].und=this.value;atualizarCustoIngred(${i})" style="${stl}">
         ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
       </select>
       ${ing.pId==='_custom'
@@ -1926,8 +1949,20 @@ function renderIngredientes(){
             ${estoqueIngs.map(p=>`<option value="${p.id}" ${ing.pId===p.id?'selected':''}>${p.nome} (${p.un})</option>`).join('')}
             <option value="_custom">＋ Digitar manualmente</option>
           </select>`}
+      <span id="recCusto_${i}" style="font-size:11px;font-weight:700;color:${custoInit!=='—'?'var(--cara)':'var(--txt3)'};text-align:right;display:flex;align-items:center;justify-content:flex-end">${custoInit}</span>
       <button class="btn-ic btn-d" onclick="remIngrediente(${i})" style="padding:5px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>`}).join('')
+}
+function atualizarCustoIngred(i){
+  const ing=tempIng[i];const el=document.getElementById('recCusto_'+i);if(!el)return
+  if(!ing.pId||ing.pId==='_custom'){el.textContent='—';el.style.color='var(--txt3)';return}
+  const prod=DB.get(S.PRODUTOS).find(p=>p.id===ing.pId)
+  if(!prod||!prod.custo){el.textContent='—';el.style.color='var(--txt3)';return}
+  const qtdNum=parseFloat(ing.qtd)||0
+  const qtdConv=converterUnidade(qtdNum,ing.und,prod.un)
+  const custo=qtdConv!=null&&qtdConv>0?qtdConv*prod.custo:null
+  el.textContent=custo!=null?fmt(custo):'—'
+  el.style.color=custo!=null?'var(--cara)':'var(--txt3)'
 }
 function selectIngRec(i,pId){
   if(pId==='_custom'){tempIng[i].pId='_custom';tempIng[i].nome=''}
