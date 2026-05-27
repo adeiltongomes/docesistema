@@ -1934,7 +1934,7 @@ function renderIngredientes(){
     const qtdConv=prod?converterUnidade(qtdNum,ing.und,prod.un):null
     const custoInit=prod&&prod.custo>0&&qtdConv!=null?fmt(qtdConv*prod.custo):'—'
     return`
-    <div style="display:grid;grid-template-columns:70px 90px 1fr 80px 30px;gap:6px;align-items:center;margin-bottom:5px">
+    <div style="display:grid;grid-template-columns:70px 90px 1fr 80px 24px 30px;gap:6px;align-items:center;margin-bottom:5px">
       <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value;atualizarCustoIngred(${i})" style="${stl}">
       <select onchange="tempIng[${i}].und=this.value;atualizarCustoIngred(${i})" style="${stl}">
         ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
@@ -1950,6 +1950,7 @@ function renderIngredientes(){
             <option value="_custom">＋ Digitar manualmente</option>
           </select>`}
       <span id="recCusto_${i}" style="font-size:11px;font-weight:700;color:${custoInit!=='—'?'var(--cara)':'var(--txt3)'};text-align:right;display:flex;align-items:center;justify-content:flex-end">${custoInit}</span>
+      ${prod?`<button class="btn-ic" onclick="editCustoRapido('${prod.id}',${i})" title="Editar custo do ingrediente" style="padding:4px;color:${custoInit==='—'?'var(--warn)':'var(--txt3)'}"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`:'<span></span>'}
       <button class="btn-ic btn-d" onclick="remIngrediente(${i})" style="padding:5px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>`}).join('')
 }
@@ -1973,6 +1974,27 @@ function selectIngRec(i,pId){
 }
 function addIngrediente(){tempIng.push({qtd:'',und:'g',nome:'',pId:''});renderIngredientes()}
 function remIngrediente(i){if(tempIng.length>1)tempIng.splice(i,1);else tempIng=[{qtd:'',und:'g',nome:'',pId:''}];renderIngredientes()}
+function editCustoRapido(pId,ingIdx){
+  const prods=DB.get(S.PRODUTOS);const prod=prods.find(p=>p.id===pId);if(!prod)return
+  const stl='width:100%;padding:8px 10px;border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-family:inherit;outline:none;color:var(--txt)'
+  openModal(`Custo — ${prod.nome}`,`
+    <p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Informe o custo por <strong>${prod.un}</strong> deste ingrediente.</p>
+    <div class="fg"><label>Custo por ${prod.un} (R$)</label>
+      <input type="number" id="custoRapidoVal" value="${prod.custo||''}" min="0" step="0.0001" placeholder="Ex: 0,0045" style="${stl}" autofocus>
+    </div>
+    <p style="font-size:11px;color:var(--txt3);margin-top:8px">Dica: se pagou R$ 4,50 por 1 kg (1000 g), o custo por g é 0,0045.</p>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-p" onclick="salvarCustoRapido('${pId}',${ingIdx})">Salvar</button>`)
+  setTimeout(()=>{const inp=document.getElementById('custoRapidoVal');if(inp){inp.focus();inp.select()}},80)
+}
+function salvarCustoRapido(pId,ingIdx){
+  const val=parseFloat((document.getElementById('custoRapidoVal')||{}).value)||0
+  const prods=DB.get(S.PRODUTOS);const i=prods.findIndex(p=>p.id===pId);if(i<0)return
+  prods[i].custo=val;DB.set(S.PRODUTOS,prods)
+  closeModal();toast('Custo atualizado!','ok')
+  renderIngredientes()
+  atualizarCustoIngred(ingIdx)
+}
 
 // ===== AUDIO PREPARO =====
 function renderAudioWidget(){
