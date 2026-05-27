@@ -1876,7 +1876,7 @@ function novaReceita(){
   editId=null;tempIng=[{qtd:'',und:'g',nome:'',pId:''}];tempAnexo=null;tempAudioPrep=null;pararGravacao()
   openModal('Nova Receita',receitaForm({}),
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarReceita()">Salvar Receita</button>`,true)
-  renderIngredientes();renderAudioWidget()
+  renderIngredientes();renderAudioWidget();atualizarTotalCustoReceita()
 }
 function editReceita(id){
   const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
@@ -1891,7 +1891,7 @@ function editReceita(id){
   tempAnexo=r.foto||null;tempAudioPrep=r.audioPrep||null;pararGravacao()
   openModal('Editar Receita',receitaForm(r),
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarReceita()">Atualizar Receita</button>`,true)
-  renderIngredientes();renderAudioWidget()
+  renderIngredientes();renderAudioWidget();atualizarTotalCustoReceita()
 }
 function receitaForm(r){
   return`
@@ -1910,11 +1910,11 @@ function receitaForm(r){
   <div class="frow t3"><div class="fg"><label>Rendimento</label><input id="rRend" value="${r.rendimento||''}" placeholder="Ex: 12 fatias"></div>
   <div class="fg"><label>Tempo de Preparo</label><input id="rTprep" value="${r.tpreparo||''}" placeholder="Ex: 30 min"></div>
   <div class="fg"><label>Tempo Forno/Cozimento</label><input id="rTcoz" value="${r.tcozimento||''}" placeholder="Ex: 45 min"></div></div>
-  <div class="frow"><div class="fg"><label>Dificuldade</label><select id="rDif"><option value="">Selecione...</option>${REC_DIFS.map(d=>`<option value="${d}" ${r.dif===d?'selected':''}>${d}</option>`).join('')}</select></div>
-  <div class="fg"><label>Custo Estimado (R$)</label><input type="number" id="rCusto" value="${r.custo||''}" placeholder="0,00" min="0" step="0.01"></div></div>
+  <div class="frow"><div class="fg"><label>Dificuldade</label><select id="rDif"><option value="">Selecione...</option>${REC_DIFS.map(d=>`<option value="${d}" ${r.dif===d?'selected':''}>${d}</option>`).join('')}</select></div></div>
   <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Ingredientes</div>
   <div id="ingList" style="margin-bottom:8px"></div>
-  <button class="btn btn-s btn-sm" onclick="addIngrediente()" style="margin-bottom:14px">+ Ingrediente</button>
+  <button class="btn btn-s btn-sm" onclick="addIngrediente()" style="margin-bottom:10px">+ Ingrediente</button>
+  <div id="recCustoTotal" style="margin-bottom:14px"></div>
   <div class="fg"><label>Modo de Preparo *</label><textarea id="rPreparo" style="min-height:120px" placeholder="Descreva o passo a passo da receita...">${r.preparo||''}</textarea>
     <div style="margin-top:8px;font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Ou grave um áudio</div>
     <div id="audioWidgetBox"></div>
@@ -1956,14 +1956,36 @@ function renderIngredientes(){
 }
 function atualizarCustoIngred(i){
   const ing=tempIng[i];const el=document.getElementById('recCusto_'+i);if(!el)return
-  if(!ing.pId||ing.pId==='_custom'){el.textContent='—';el.style.color='var(--txt3)';return}
-  const prod=DB.get(S.PRODUTOS).find(p=>p.id===ing.pId)
-  if(!prod||!prod.custo){el.textContent='—';el.style.color='var(--txt3)';return}
-  const qtdNum=parseFloat(ing.qtd)||0
-  const qtdConv=converterUnidade(qtdNum,ing.und,prod.un)
-  const custo=qtdConv!=null&&qtdConv>0?qtdConv*prod.custo:null
-  el.textContent=custo!=null?fmt(custo):'—'
-  el.style.color=custo!=null?'var(--cara)':'var(--txt3)'
+  if(!ing.pId||ing.pId==='_custom'){el.textContent='—';el.style.color='var(--txt3)'}
+  else{
+    const prod=DB.get(S.PRODUTOS).find(p=>p.id===ing.pId)
+    if(!prod||!prod.custo){el.textContent='—';el.style.color='var(--txt3)'}
+    else{
+      const qtdConv=converterUnidade(parseFloat(ing.qtd)||0,ing.und,prod.un)
+      const custo=qtdConv!=null&&qtdConv>0?qtdConv*prod.custo:null
+      el.textContent=custo!=null?fmt(custo):'—'
+      el.style.color=custo!=null?'var(--cara)':'var(--txt3)'
+    }
+  }
+  atualizarTotalCustoReceita()
+}
+function atualizarTotalCustoReceita(){
+  const el=document.getElementById('recCustoTotal');if(!el)return
+  const prods=DB.get(S.PRODUTOS)
+  let total=0;let parcial=false;let semCusto=0
+  tempIng.forEach(ing=>{
+    if(!ing.pId||ing.pId==='_custom'){semCusto++;return}
+    const prod=prods.find(p=>p.id===ing.pId)
+    if(!prod||!prod.custo){semCusto++;return}
+    const qtdConv=converterUnidade(parseFloat(ing.qtd)||0,ing.und,prod.un)
+    if(qtdConv!=null&&qtdConv>0){total+=qtdConv*prod.custo;parcial=semCusto>0}
+    else semCusto++
+  })
+  if(total===0){el.innerHTML='';return}
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2)">
+    <span style="font-size:12px;font-weight:600;color:var(--txt2)">Custo total dos ingredientes${parcial?' <span style="color:var(--warn);font-size:11px">(parcial — '+semCusto+' sem custo)</span>':''}</span>
+    <span style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(total)}</span>
+  </div>`
 }
 function selectIngRec(i,pId){
   if(pId==='_custom'){tempIng[i].pId='_custom';tempIng[i].nome=''}
@@ -1972,8 +1994,8 @@ function selectIngRec(i,pId){
   renderIngredientes()
   if(pId==='_custom')setTimeout(()=>{const inp=document.getElementById('ingNomeCustom_'+i);if(inp)inp.focus()},40)
 }
-function addIngrediente(){tempIng.push({qtd:'',und:'g',nome:'',pId:''});renderIngredientes()}
-function remIngrediente(i){if(tempIng.length>1)tempIng.splice(i,1);else tempIng=[{qtd:'',und:'g',nome:'',pId:''}];renderIngredientes()}
+function addIngrediente(){tempIng.push({qtd:'',und:'g',nome:'',pId:''});renderIngredientes();atualizarTotalCustoReceita()}
+function remIngrediente(i){if(tempIng.length>1)tempIng.splice(i,1);else tempIng=[{qtd:'',und:'g',nome:'',pId:''}];renderIngredientes();atualizarTotalCustoReceita()}
 function editCustoRapido(pId,ingIdx){
   const prods=DB.get(S.PRODUTOS);const prod=prods.find(p=>p.id===pId);if(!prod)return
   const stl='width:100%;padding:8px 10px;border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-family:inherit;outline:none;color:var(--txt)'
@@ -1994,6 +2016,7 @@ function salvarCustoRapido(pId,ingIdx){
   closeModal();toast('Custo atualizado!','ok')
   renderIngredientes()
   atualizarCustoIngred(ingIdx)
+  atualizarTotalCustoReceita()
 }
 
 // ===== AUDIO PREPARO =====
