@@ -1985,14 +1985,27 @@ function atualizarTotalCustoReceita(){
   const rendStr=((document.getElementById('rRend')||{}).value||'').trim()
   const porcoes=parseFloat(rendStr.match(/[\d,.]+/)?.[0].replace(',','.'))||0
   const porLabel=rendStr.replace(/^[\d,.]+\s*/,'').trim()||'porção'
+  const custoPor=porcoes>1?total/porcoes:total
+  const markup=parseFloat(((document.getElementById('recMarkup')||{}).value||'').replace(',','.'))||0
+  const precoVenda=markup>0?custoPor*(1+markup/100):0
+  const stlInp='padding:5px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt);background:var(--ivory);width:70px;text-align:right'
   el.innerHTML=`<div style="background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2);overflow:hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px">
-      <span style="font-size:12px;font-weight:600;color:var(--txt2)">Custo total dos ingredientes${parcial?` <span style="color:var(--warn);font-size:11px">(parcial — ${semCusto} sem custo)</span>`:''}</span>
+      <span style="font-size:12px;font-weight:600;color:var(--txt2)">Custo total${parcial?` <span style="color:var(--warn);font-size:11px">(parcial — ${semCusto} sem custo)</span>`:''}</span>
       <span style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(total)}</span>
     </div>
-    ${porcoes>1?`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid var(--cream2);background:var(--ivory)">
-      <span style="font-size:12px;color:var(--txt3)">Custo por ${porLabel} <span style="color:var(--txt2);font-weight:600">(÷ ${porcoes})</span></span>
-      <span style="font-size:14px;font-weight:700;color:var(--cara2)">${fmt(total/porcoes)}</span>
+    ${porcoes>1?`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid var(--cream2)">
+      <span style="font-size:12px;color:var(--txt3)">Custo por ${porLabel} (÷ ${porcoes})</span>
+      <span style="font-size:14px;font-weight:700;color:var(--cara2)">${fmt(custoPor)}</span>
+    </div>`:''}
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--cream2);background:var(--ivory)">
+      <span style="font-size:12px;color:var(--txt2);font-weight:600;flex:1">Markup %</span>
+      <input id="recMarkup" type="number" min="0" step="1" placeholder="ex: 200" value="${markup||''}" oninput="atualizarTotalCustoReceita()" style="${stlInp}">
+      <span style="font-size:11px;color:var(--txt3)">%</span>
+      <span style="font-size:13px;font-weight:800;color:var(--ok);min-width:80px;text-align:right">${precoVenda>0?'→ '+fmt(precoVenda):'—'}</span>
+    </div>
+    ${precoVenda>0?`<div style="padding:6px 14px 10px;font-size:11px;color:var(--txt3)">
+      Custo ${fmt(custoPor)} + ${markup}% = <strong style="color:var(--ok)">${fmt(precoVenda)}</strong> por ${porcoes>1?porLabel:'unidade'}
     </div>`:''}
   </div>`
 }
