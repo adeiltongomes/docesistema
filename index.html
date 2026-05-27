@@ -736,18 +736,28 @@ function salvarVenda(){
   const obs=(document.getElementById('vObs')||{}).value
   const noivos=v('vNoivos')
   const vendas=DB.get(S.VENDAS);const trans=DB.get(S.TRANS)
+  const prods=DB.get(S.PRODUTOS)
+  function descontarEstoque(itensList,sinal){
+    itensList.forEach(it=>{if(!it.pId||it.pId==='_custom')return;const i=prods.findIndex(p=>p.id===it.pId);if(i>=0)prods[i].estoque=Math.max(0,(prods[i].estoque||0)+sinal*(parseFloat(it.qtd)||0))})
+  }
   if(editId){
+    const old=vendas.find(x=>x.id===editId)
+    if(old)descontarEstoque(old.itens,+1)
+    descontarEstoque(itens,-1)
     const idx=vendas.findIndex(x=>x.id===editId)
     if(idx>=0)vendas[idx]={id:editId,cliId,data,itens,total,desc,totalF,pgto,status,noivos,obs,comprovante:tempAnexo}
     DB.set(S.VENDAS,vendas)
     const ti=trans.findIndex(x=>x.ref===editId)
     if(ti>=0){trans[ti]={...trans[ti],val:totalF,data,pgto,desc:`Venda - ${clienteNome(cliId)}`};DB.set(S.TRANS,trans)}
+    DB.set(S.PRODUTOS,prods)
     closeModal();toast('Venda atualizada!','ok')
   }else{
+    descontarEstoque(itens,-1)
     const venda={id:genId(),cliId,data,itens,total,desc,totalF,pgto,status,noivos,obs,comprovante:tempAnexo}
     vendas.push(venda);DB.set(S.VENDAS,vendas)
     trans.push({id:genId(),tipo:'entrada',cat:'Venda',desc:`Venda - ${clienteNome(cliId)}`,val:totalF,data,pgto,ref:venda.id})
     DB.set(S.TRANS,trans)
+    DB.set(S.PRODUTOS,prods)
     closeModal();toast('Venda registrada!','ok')
   }
   render('vendas')
@@ -779,10 +789,17 @@ function verVenda(id){
 }
 
 function excluirVenda(id){
-  if(!confirm('Excluir esta venda?'))return
-  const vendas=DB.get(S.VENDAS).filter(x=>x.id!==id);DB.set(S.VENDAS,vendas)
-  const trans=DB.get(S.TRANS).filter(x=>x.ref!==id);DB.set(S.TRANS,trans)
-  toast('Venda excluída','ok');render('vendas')
+  confirmarModal('Excluir esta venda? O estoque dos produtos será restaurado.',()=>{
+    const venda=DB.get(S.VENDAS).find(x=>x.id===id)
+    if(venda){
+      const prods=DB.get(S.PRODUTOS)
+      ;(venda.itens||[]).forEach(it=>{if(!it.pId||it.pId==='_custom')return;const i=prods.findIndex(p=>p.id===it.pId);if(i>=0)prods[i].estoque=Math.max(0,(prods[i].estoque||0)+(parseFloat(it.qtd)||0))})
+      DB.set(S.PRODUTOS,prods)
+    }
+    DB.set(S.VENDAS,DB.get(S.VENDAS).filter(x=>x.id!==id))
+    DB.set(S.TRANS,DB.get(S.TRANS).filter(x=>x.ref!==id))
+    toast('Venda excluída e estoque restaurado','ok');render('vendas')
+  })
 }
 
 // ===== ORÇAMENTOS =====
