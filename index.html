@@ -844,6 +844,7 @@ function renderOrcTable(){
         <button class="btn-ic" style="margin-right:4px" onclick="editOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" title="Imprimir" onclick="imprimirOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
         <button class="btn-ic" style="margin-right:4px" title="Link p/ Cliente" onclick="gerarLinkOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        ${o.status==='aprovado'&&!DB.get(S.VENDAS).find(x=>x.orcId===o.id)?`<button class="btn-ic" style="margin-right:4px;color:var(--ok)" title="Gerar Venda" onclick="gerarVendaDeOrc('${o.id}')">💰</button>`:''}
         <button class="btn-ic btn-d" title="Excluir" onclick="excluirOrc('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </td>
     </tr>`).join('')}
@@ -960,14 +961,53 @@ function statusOrc(id,status){
   })
   if(status==='aprovado'){
     toast('Orçamento aprovado!','ok')
-    openModal('Gerar Ordem de Serviço?',
-      `<p style="font-size:14px;color:var(--txt);line-height:1.6;padding:6px 0">Orçamento aprovado! Deseja gerar uma <strong>Ordem de Serviço</strong> agora?</p>`,
-      `<button class="btn btn-s" onclick="closeModal();render('orcamentos')">Agora não</button><button class="btn btn-p" style="background:var(--ok)" onclick="closeModal();gerarOS('${id}')">✓ Gerar OS</button>`)
+    openModal('Orçamento Aprovado',
+      `<p style="font-size:14px;color:var(--txt);line-height:1.6;padding:6px 0">O que deseja fazer agora?</p>
+       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+         <div style="padding:10px 14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2);font-size:13px;color:var(--txt2)">🗒 <strong>Ordem de Serviço</strong> — para controlar a produção antes de entregar</div>
+         <div style="padding:10px 14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2);font-size:13px;color:var(--txt2)">💰 <strong>Gerar Venda</strong> — registra pagamento e desconta do estoque</div>
+       </div>`,
+      `<button class="btn btn-s" onclick="closeModal();render('orcamentos')">Agora não</button>
+       <button class="btn btn-s" style="background:var(--choc2);color:#fff;border-color:var(--choc2)" onclick="closeModal();gerarOS('${id}')">🗒 Gerar OS</button>
+       <button class="btn btn-p" style="background:var(--ok)" onclick="closeModal();gerarVendaDeOrc('${id}')">💰 Gerar Venda</button>`)
   }else if(status==='recusado'){
     toast('Orçamento marcado como recusado','warn')
   }else{
     toast('Status atualizado para pendente','ok')
   }
+}
+function gerarVendaDeOrc(orcId){
+  const o=DB.get(S.ORCAMENTOS).find(x=>x.id===orcId);if(!o)return
+  if(DB.get(S.VENDAS).find(x=>x.orcId===orcId)){toast('Venda já gerada para este orçamento','warn');return}
+  const pgtos=['Pix','Dinheiro','Cartão','Transferência']
+  const stl='width:100%;padding:8px 10px;border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-family:inherit;outline:none;color:var(--txt)'
+  openModal('Gerar Venda do Orçamento',`
+    <p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Confirme os dados para registrar a venda de <strong>${fmt(o.totalF||o.total)}</strong>:</p>
+    <div class="frow">
+      <div class="fg"><label>Forma de Pagamento</label><select id="gvPgto" style="${stl}">${pgtos.map(p=>`<option>${p}</option>`).join('')}</select></div>
+      <div class="fg"><label>Status</label><select id="gvStatus" style="${stl}"><option value="pago">Pago</option><option value="pendente">Pendente</option></select></div>
+    </div>
+    <div class="fg"><label>Data da Venda</label><input type="date" id="gvData" value="${today()}" style="${stl}"></div>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-p" style="background:var(--ok)" onclick="confirmarGerarVendaDeOrc('${orcId}')">✓ Gerar Venda</button>`)
+}
+function confirmarGerarVendaDeOrc(orcId){
+  const o=DB.get(S.ORCAMENTOS).find(x=>x.id===orcId);if(!o)return
+  const pgto=(document.getElementById('gvPgto')||{}).value||'Pix'
+  const status=(document.getElementById('gvStatus')||{}).value||'pago'
+  const data=(document.getElementById('gvData')||{}).value||today()
+  const venda={id:genId(),cliId:o.cliId,data,itens:o.itens,total:o.total,desc:o.desc||0,totalF:o.totalF||o.total,pgto,status,noivos:o.noivos||'',obs:o.obs||'',orcId}
+  const vendas=DB.get(S.VENDAS);vendas.push(venda);DB.set(S.VENDAS,vendas)
+  const trans=DB.get(S.TRANS)
+  trans.push({id:genId(),tipo:'entrada',cat:'Venda',desc:`Venda - ${clienteNome(o.cliId)} (Orç.)`,val:venda.totalF,data,pgto,ref:venda.id})
+  DB.set(S.TRANS,trans)
+  const prods=DB.get(S.PRODUTOS)
+  let descontados=0
+  ;(o.itens||[]).forEach(it=>{if(!it.pId||it.pId==='_custom')return;const i=prods.findIndex(p=>p.id===it.pId);if(i>=0){prods[i].estoque=Math.max(0,(prods[i].estoque||0)-(parseFloat(it.qtd)||0));descontados++}})
+  if(descontados>0)DB.set(S.PRODUTOS,prods)
+  closeModal()
+  toast(`Venda gerada! ${descontados>0?descontados+' item(s) descontado(s) do estoque.':''}`,'ok')
+  render('vendas')
 }
 function excluirOrc(id){
   const o=DB.get(S.ORCAMENTOS).find(x=>x.id===id);if(!o)return
