@@ -1910,7 +1910,11 @@ function receitaForm(r){
   <div class="frow t3"><div class="fg"><label>Rendimento</label><input id="rRend" value="${r.rendimento||''}" placeholder="Ex: 12 fatias" oninput="atualizarTotalCustoReceita()"></div>
   <div class="fg"><label>Tempo de Preparo</label><input id="rTprep" value="${r.tpreparo||''}" placeholder="Ex: 30 min"></div>
   <div class="fg"><label>Tempo Forno/Cozimento</label><input id="rTcoz" value="${r.tcozimento||''}" placeholder="Ex: 45 min"></div></div>
-  <div class="frow"><div class="fg"><label>Dificuldade</label><select id="rDif"><option value="">Selecione...</option>${REC_DIFS.map(d=>`<option value="${d}" ${r.dif===d?'selected':''}>${d}</option>`).join('')}</select></div></div>
+  <div class="frow"><div class="fg"><label>Dificuldade</label><select id="rDif"><option value="">Selecione...</option>${REC_DIFS.map(d=>`<option value="${d}" ${r.dif===d?'selected':''}>${d}</option>`).join('')}</select></div>
+  <div class="fg"><label>Produto Final (vínculo)</label><select id="rProdId">
+    <option value="">Sem vínculo</option>
+    ${DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo!==false).map(p=>`<option value="${p.id}" ${r.prodId===p.id?'selected':''}>${p.nome}</option>`).join('')}
+  </select></div></div>
   <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Ingredientes</div>
   <div id="ingList" style="margin-bottom:8px"></div>
   <button class="btn btn-s btn-sm" onclick="addIngrediente()" style="margin-bottom:10px">+ Ingrediente</button>
@@ -1925,6 +1929,12 @@ function receitaForm(r){
   `
 }
 function salvarPrecoVendaProduto(preco){
+  const prodId=(document.getElementById('rProdId')||{}).value||''
+  if(prodId){
+    const prods=DB.get(S.PRODUTOS);const i=prods.findIndex(p=>p.id===prodId);if(i<0)return
+    prods[i].preco=parseFloat(preco.toFixed(2));DB.set(S.PRODUTOS,prods)
+    toast(`Preço ${fmt(preco)} salvo em "${prods[i].nome}"!`,'ok');return
+  }
   const produtos=DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo!==false)
   if(!produtos.length){toast('Nenhum produto final cadastrado no estoque','err');return}
   const stl='width:100%;padding:8px 10px;border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-family:inherit;outline:none;color:var(--txt)'
@@ -2153,6 +2163,7 @@ function salvarReceita(){
     tcozimento:v('rTcoz'),
     dif:(document.getElementById('rDif')||{}).value,
     custo:parseFloat((document.getElementById('rCusto')||{}).value)||0,
+    prodId:(document.getElementById('rProdId')||{}).value||'',
     ingredientes:tempIng.filter(x=>(x.pId&&x.pId!=='_custom')||x.nome.trim()),
     preparo:(document.getElementById('rPreparo')||{}).value||'',
     dicas:(document.getElementById('rDicas')||{}).value||'',
