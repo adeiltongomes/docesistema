@@ -1230,7 +1230,15 @@ function renderCmpTable(){
   el.innerHTML=`<table><thead><tr><th>Data</th><th>Fornecedor</th><th>Itens</th><th>NF</th><th>Pagamento</th><th>Total</th><th></th></tr></thead><tbody>
     ${rows.map(c=>`<tr>
       <td>${fmtDate(c.data)}</td><td><strong>${c.forn}</strong></td>
-      <td style="font-size:12px;line-height:1.7">${c.itens.map(it=>`<span style="display:inline-block;background:var(--cream2);border-radius:4px;padding:1px 6px;margin:1px 2px 1px 0;white-space:nowrap"><strong>${it.nome||'—'}</strong> <span style="color:var(--cara);font-weight:700">${it.qtd||''} ${it.und||''}</span>${it.valor?` · <span style="color:var(--ok)">${fmt(it.valor)}</span>`:''}</span>`).join('')}</td>
+      <td style="font-size:12px">${(()=>{
+        const vis=c.itens.slice(0,3)
+        const resto=c.itens.length-3
+        return vis.map(it=>`<div style="display:flex;align-items:center;gap:6px;padding:2px 0;border-bottom:1px solid var(--cream2);white-space:nowrap;overflow:hidden">
+          <span style="font-weight:600;color:var(--txt);flex:1;overflow:hidden;text-overflow:ellipsis">${it.nome||'—'}</span>
+          <span style="color:var(--cara);font-weight:700;flex-shrink:0">${it.qtd||''} ${it.und||''}</span>
+          ${it.valor?`<span style="color:var(--ok);flex-shrink:0">${fmt(it.valor)}</span>`:''}
+        </div>`).join('')+(resto>0?`<div style="font-size:11px;color:var(--txt3);padding-top:3px">+${resto} item${resto>1?'s':''} — <a href="#" onclick="event.preventDefault();verCompra('${c.id}')" style="color:var(--cara);text-decoration:none">ver todos</a></div>`:'')
+      })()}</td>
       <td>${c.nf||'—'}${c.notaAnexo?`<span class="anexo-clip" title="Nota anexada"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`:''}</td>
       <td><span style="font-size:12px;font-weight:600;color:var(--txt2)">${c.pgto}${(c.parcelas||1)>1?`<br><span style="color:var(--cara);font-size:11px">${c.parcelas}× de ${fmt(c.valorParcela)}</span>`:''}</span></td>
       <td><strong style="font-size:15px;font-weight:800;color:var(--bad)">${fmt(c.total)}</strong></td>
