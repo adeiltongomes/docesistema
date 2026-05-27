@@ -1246,7 +1246,7 @@ function renderCItens(ings){
       <input type="number" value="${it.valor||''}" min="0" step="0.01" placeholder="R$ pago" oninput="updateCmpItem(${i},'valor',this.value)" onblur="renderCItens()">
       <span id="cCusto_${i}" style="font-size:11px;font-weight:700;color:${custoStr!=='—'?'var(--ok)':'var(--txt3)'};display:flex;align-items:center;padding:0 4px">${custoStr}</span>
       <button class="btn-ic btn-d" onclick="removeCmpItem(${i})" style="padding:4px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    </div>`}).join('')
+    </div>
     ${it._novoMode?`<div style="background:var(--cream);border:1.5px solid var(--cara);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px">
       <div style="font-size:11px;font-weight:700;color:var(--cara);text-transform:uppercase;letter-spacing:.5px">Novo Ingrediente</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -1261,7 +1261,7 @@ function renderCItens(ings){
         <button type="button" class="btn btn-s btn-sm" onclick="cancelarNovoIngCmp(${i})">✕ Cancelar</button>
       </div>
     </div>`:''}
-  `).join('')
+  `}).join('')
 }
 function selectIngCmp(i,pId){
   if(pId==='__novo__'){
