@@ -1522,10 +1522,22 @@ function verCompra(id){
     `<button class="btn btn-s" onclick="closeModal()">Fechar</button>`)
 }
 function excluirCompra(id){
-  if(!confirm('Excluir esta compra?'))return
-  DB.set(S.COMPRAS,DB.get(S.COMPRAS).filter(x=>x.id!==id))
-  DB.set(S.TRANS,DB.get(S.TRANS).filter(x=>x.ref!==id))
-  toast('Compra removida','ok');render('compras')
+  confirmarModal('Excluir esta compra? O estoque dos ingredientes será revertido.',()=>{
+    const compra=DB.get(S.COMPRAS).find(x=>x.id===id)
+    if(compra){
+      const prods=DB.get(S.PRODUTOS)
+      ;(compra.itens||[]).forEach(it=>{
+        if(!it.pId||it.pId==='_free')return
+        const i=prods.findIndex(p=>p.id===it.pId);if(i<0)return
+        const qtdConv=it.und?converterUnidade(it.qtd,it.und,prods[i].un)??it.qtd:it.qtd
+        prods[i].estoque=Math.max(0,(prods[i].estoque||0)-qtdConv)
+      })
+      DB.set(S.PRODUTOS,prods)
+    }
+    DB.set(S.COMPRAS,DB.get(S.COMPRAS).filter(x=>x.id!==id))
+    DB.set(S.TRANS,DB.get(S.TRANS).filter(x=>x.ref!==id))
+    toast('Compra removida e estoque revertido','ok');render('compras')
+  })
 }
 function imprimirCompra(id){
   const c=DB.get(S.COMPRAS).find(x=>x.id===id);if(!c)return
