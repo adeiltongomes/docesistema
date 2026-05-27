@@ -1215,41 +1215,84 @@ function cmpHTML(){
   return`
   <div class="ph"><div><h2>Compras</h2><p>Registro de compras de matérias-primas</p></div>
     <button class="btn btn-p" onclick="novaCompra()">+ Registrar Compra</button></div>
-  <div class="card">
-    <div class="tbar"><div class="srch"><svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="srchCmp" placeholder="Buscar fornecedor..." oninput="renderCmpTable()"></div></div>
-    <div class="tc" id="cmpTable"></div>
-  </div>`
+  <div id="cmpStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px"></div>
+  <div class="card" style="padding:14px 18px">
+    <div class="tbar" style="margin-bottom:0"><div class="srch"><svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="srchCmp" placeholder="Buscar fornecedor..." oninput="renderCmpTable()"></div></div>
+  </div>
+  <div id="cmpTable"></div>`
 }
 function bindCmp(){renderCmpTable()}
 function renderCmpTable(){
   const q=(document.getElementById('srchCmp')||{}).value||''
   let rows=DB.get(S.COMPRAS).sort((a,b)=>b.data.localeCompare(a.data))
   if(q)rows=rows.filter(c=>c.forn.toLowerCase().includes(q.toLowerCase()))
+
+  // stats
+  const allCmp=DB.get(S.COMPRAS)
+  const mes=today().slice(0,7)
+  const totalMes=allCmp.filter(c=>c.data.startsWith(mes)).reduce((a,c)=>a+(c.total||0),0)
+  const totalGeral=allCmp.reduce((a,c)=>a+(c.total||0),0)
+  const fornSet=new Set(allCmp.map(c=>c.forn))
+  const statsEl=document.getElementById('cmpStats')
+  if(statsEl)statsEl.innerHTML=[
+    {label:'Total este mês',val:fmt(totalMes),cor:'var(--bad)',icon:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'},
+    {label:'Total geral',val:fmt(totalGeral),cor:'var(--warn)',icon:'<rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2"/>'},
+    {label:'Registros',val:allCmp.length,cor:'var(--cara)',icon:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2"/>'},
+    {label:'Fornecedores',val:fornSet.size,cor:'var(--ok)',icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2"/>'},
+  ].map(s=>`<div class="card" style="padding:16px 18px;display:flex;align-items:center;gap:14px">
+    <div style="width:40px;height:40px;border-radius:10px;background:${s.cor}18;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24">${s.icon}</svg>
+    </div>
+    <div><div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${s.label}</div>
+    <div style="font-size:20px;font-weight:800;color:${s.cor}">${s.val}</div></div>
+  </div>`).join('')
+
   const el=document.getElementById('cmpTable');if(!el)return
   if(!rows.length){el.innerHTML=`<div class="empty"><h3>Nenhuma compra</h3><p>Registre a primeira compra</p></div>`;return}
-  el.innerHTML=`<table><thead><tr><th>Data</th><th>Fornecedor</th><th>Itens</th><th>NF</th><th>Pagamento</th><th>Total</th><th></th></tr></thead><tbody>
-    ${rows.map(c=>`<tr>
-      <td>${fmtDate(c.data)}</td><td><strong>${c.forn}</strong></td>
-      <td style="font-size:12px">${(()=>{
-        const vis=c.itens.slice(0,3)
-        const resto=c.itens.length-3
-        return vis.map(it=>`<div style="display:flex;align-items:center;gap:6px;padding:2px 0;border-bottom:1px solid var(--cream2);white-space:nowrap;overflow:hidden">
-          <span style="font-weight:600;color:var(--txt);flex:1;overflow:hidden;text-overflow:ellipsis">${it.nome||'—'}</span>
-          <span style="color:var(--cara);font-weight:700;flex-shrink:0">${it.qtd||''} ${it.und||''}</span>
-          ${it.valor?`<span style="color:var(--ok);flex-shrink:0">${fmt(it.valor)}</span>`:''}
-        </div>`).join('')+(resto>0?`<div style="font-size:11px;color:var(--txt3);padding-top:3px">+${resto} item${resto>1?'s':''} — <a href="#" onclick="event.preventDefault();verCompra('${c.id}')" style="color:var(--cara);text-decoration:none">ver todos</a></div>`:'')
-      })()}</td>
-      <td>${c.nf||'—'}${c.notaAnexo?`<span class="anexo-clip" title="Nota anexada"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`:''}</td>
-      <td><span style="font-size:12px;font-weight:600;color:var(--txt2)">${c.pgto}${(c.parcelas||1)>1?`<br><span style="color:var(--cara);font-size:11px">${c.parcelas}× de ${fmt(c.valorParcela)}</span>`:''}</span></td>
-      <td><strong style="font-size:15px;font-weight:800;color:var(--bad)">${fmt(c.total)}</strong></td>
-      <td>
-        <button class="btn-ic" style="margin-right:4px" onclick="verCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button>
-        <button class="btn-ic" style="margin-right:4px" onclick="editCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button class="btn-ic" style="margin-right:4px" title="Imprimir" onclick="imprimirCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
-        <button class="btn-ic btn-d" onclick="excluirCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </td>
-    </tr>`).join('')}
-  </tbody></table>`
+
+  const pgtoColor={'Pix':'var(--ok)','Dinheiro':'var(--ok)','Cartão':'var(--cara)','Boleto':'var(--warn)','Transferência':'var(--txt2)'}
+  el.innerHTML=rows.map(c=>{
+    const vis=c.itens.slice(0,4);const resto=c.itens.length-4
+    const cor=pgtoColor[c.pgto]||'var(--txt2)'
+    return`<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px">
+      <div style="display:flex;align-items:stretch;gap:0">
+        <div style="width:4px;background:${cor};flex-shrink:0;border-radius:12px 0 0 12px"></div>
+        <div style="flex:1;padding:14px 16px">
+
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:9px;background:var(--cream2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--cara);flex-shrink:0">${(c.forn||'?')[0].toUpperCase()}</div>
+              <div>
+                <div style="font-weight:700;font-size:15px;color:var(--txt)">${c.forn}</div>
+                <div style="font-size:12px;color:var(--txt3);margin-top:1px">${fmtDate(c.data)}${c.nf?` · NF <strong style="color:var(--txt2)">${c.nf}</strong>`:''}${c.notaAnexo?` <span style="color:var(--cara)" title="Nota anexada">📎</span>`:''}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${cor}18;color:${cor}">${c.pgto}${(c.parcelas||1)>1?` ${c.parcelas}×`:''}</span>
+              <span style="font-size:18px;font-weight:800;color:var(--bad)">${fmt(c.total)}</span>
+            </div>
+          </div>
+
+          <div style="background:var(--cream);border-radius:8px;padding:8px 12px;margin-bottom:10px">
+            ${vis.map(it=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--cream2)">
+              <span style="flex:1;font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.nome||'—'}</span>
+              <span style="font-size:12px;font-weight:700;color:var(--cara);flex-shrink:0">${it.qtd||''} ${it.und||''}</span>
+              ${it.valor?`<span style="font-size:12px;color:var(--ok);flex-shrink:0;min-width:64px;text-align:right">${fmt(it.valor)}</span>`:''}
+            </div>`).join('')}
+            ${resto>0?`<div style="font-size:11px;color:var(--txt3);padding-top:5px;text-align:center"><a href="#" onclick="event.preventDefault();verCompra('${c.id}')" style="color:var(--cara);text-decoration:none;font-weight:600">+ ${resto} item${resto>1?'s':''} — ver todos</a></div>`:''}
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;gap:6px">
+            <button class="btn btn-s btn-sm" onclick="verCompra('${c.id}')">Ver</button>
+            <button class="btn btn-s btn-sm" onclick="editCompra('${c.id}')">Editar</button>
+            <button class="btn btn-s btn-sm" onclick="imprimirCompra('${c.id}')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+            <button class="btn btn-sm" style="background:var(--bad)18;color:var(--bad);border:1.5px solid var(--bad)30" onclick="excluirCompra('${c.id}')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+
+        </div>
+      </div>
+    </div>`
+  }).join('')
 }
 
 function novaCompra(){
