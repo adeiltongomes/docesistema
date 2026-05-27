@@ -2244,7 +2244,17 @@ function atualizarPreviewProd(id,lotes){
     ${custoTotal>0?`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:10px 14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2)">
       <span style="font-size:13px;font-weight:600;color:var(--txt2)">Custo total${lotes>1?' ('+lotes+' lotes)':''}</span>
       <span style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(custoTotal)}</span>
-    </div>`:''}`
+    </div>`:''}
+    ${(()=>{
+      if(!r.prodId)return''
+      const prod=DB.get(S.PRODUTOS).find(p=>p.id===r.prodId);if(!prod)return''
+      const rendNum=parseFloat((r.rendimento||'').match(/[\d,.]+/)?.[0].replace(',','.'))||1
+      const qtdProd=rendNum*lotes
+      return`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px 14px;background:#EFF9F0;border-radius:8px;border:1.5px solid var(--ok)">
+        <span style="font-size:13px;font-weight:600;color:var(--ok)">+ Entrada no estoque</span>
+        <span style="font-size:14px;font-weight:800;color:var(--ok)">+${qtdProd%1===0?qtdProd:qtdProd.toFixed(2)} ${prod.un} de "${prod.nome}"</span>
+      </div>`
+    })()}`
 }
 
 function confirmarProducao(id){
@@ -2260,9 +2270,19 @@ function confirmarProducao(id){
       :prods.findIndex(p=>p.tipo==='ingrediente'&&p.nome.toLowerCase().trim()===(ing.nome||'').toLowerCase().trim())
     if(i>=0){const qtdConv=converterUnidade(qtdTotal,ing.und,prods[i].un);prods[i].estoque=Math.max(0,prods[i].estoque-(qtdConv!=null?qtdConv:qtdTotal));descontados++}
   })
+  let msgProd=''
+  if(r.prodId){
+    const pi=prods.findIndex(p=>p.id===r.prodId)
+    if(pi>=0){
+      const rendNum=parseFloat((r.rendimento||'').match(/[\d,.]+/)?.[0].replace(',','.'))||1
+      const qtdProd=rendNum*lotes
+      prods[pi].estoque=(prods[pi].estoque||0)+qtdProd
+      msgProd=` · +${qtdProd%1===0?qtdProd:qtdProd.toFixed(2)} ${prods[pi].un} de "${prods[pi].nome}"`
+    }
+  }
   DB.set(S.PRODUTOS,prods)
   closeModal()
-  toast(`${lotes} lote${lotes>1?'s':''} produzido${lotes>1?'s':''}! ${descontados} ingrediente${descontados!==1?'s':''} descontado${descontados!==1?'s':''} do estoque.`,'ok')
+  toast(`${lotes} lote${lotes>1?'s':''} produzido${lotes>1?'s':''}! ${descontados} ingrediente${descontados!==1?'s':''} descontado${descontados!==1?'s':''}${msgProd}.`,'ok')
 }
 
 function _ytId(url){
