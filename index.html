@@ -1924,6 +1924,27 @@ function receitaForm(r){
   ${anexoWidget(r.foto||null,'Foto da Receita')}
   `
 }
+function salvarPrecoVendaProduto(preco){
+  const produtos=DB.get(S.PRODUTOS).filter(p=>p.tipo==='produto'&&p.ativo!==false)
+  if(!produtos.length){toast('Nenhum produto final cadastrado no estoque','err');return}
+  const stl='width:100%;padding:8px 10px;border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-family:inherit;outline:none;color:var(--txt)'
+  openModal('Salvar Preço de Venda',`
+    <p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Selecione o produto que receberá o preço de <strong style="color:var(--ok)">${fmt(preco)}</strong>:</p>
+    <div class="fg"><label>Produto Final</label>
+      <select id="precoProdSel" style="${stl}">
+        <option value="">Selecione...</option>
+        ${produtos.map(p=>`<option value="${p.id}">${p.nome} (preço atual: ${p.preco?fmt(p.preco):'—'})</option>`).join('')}
+      </select>
+    </div>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-p" style="background:var(--ok)" onclick="confirmarSalvarPreco(${preco})">Salvar</button>`)
+}
+function confirmarSalvarPreco(preco){
+  const sel=document.getElementById('precoProdSel');if(!sel||!sel.value){toast('Selecione um produto','err');return}
+  const prods=DB.get(S.PRODUTOS);const i=prods.findIndex(p=>p.id===sel.value);if(i<0)return
+  prods[i].preco=parseFloat(preco.toFixed(2));DB.set(S.PRODUTOS,prods)
+  closeModal();toast(`Preço ${fmt(preco)} salvo em "${prods[i].nome}"!`,'ok')
+}
 function renderIngredientes(){
   const el=document.getElementById('ingList');if(!el)return
   const estoqueIngs=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo!==false)
@@ -2003,6 +2024,7 @@ function atualizarTotalCustoReceita(){
       <input id="recMarkup" type="number" min="0" step="1" placeholder="ex: 200" value="${markup||''}" oninput="atualizarTotalCustoReceita()" style="${stlInp}">
       <span style="font-size:11px;color:var(--txt3)">%</span>
       <span style="font-size:13px;font-weight:800;color:var(--ok);min-width:80px;text-align:right">${precoVenda>0?'→ '+fmt(precoVenda):'—'}</span>
+      ${precoVenda>0?`<button onclick="salvarPrecoVendaProduto(${precoVenda.toFixed(4)})" style="padding:5px 10px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">💾 Salvar preço</button>`:''}
     </div>
     ${precoVenda>0?`<div style="padding:6px 14px 10px;font-size:11px;color:var(--txt3)">
       Custo ${fmt(custoPor)} + ${markup}% = <strong style="color:var(--ok)">${fmt(precoVenda)}</strong> por ${porcoes>1?porLabel:'unidade'}
