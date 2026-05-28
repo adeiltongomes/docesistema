@@ -3017,6 +3017,14 @@ function alterarStatusReceita(recId,novoStatus){
   DB.set(S.RECSTATUS,all)
   render('producao')
 }
+function ocultarPedidoFila(id){
+  const orcs=DB.get(S.ORCAMENTOS);const i=orcs.findIndex(o=>o.id===id);if(i<0)return
+  orcs[i].ocultarFila=true;DB.set(S.ORCAMENTOS,orcs);render('producao')
+}
+function ocultarReceitaHoje(recId){
+  const all=(DB.get(S.RECSTATUS)||[]).filter(x=>!(x.recId===recId&&x.data===today()))
+  all.push({recId,data:today(),status:'oculto'});DB.set(S.RECSTATUS,all);render('producao')
+}
 function alterarStatusProdOrc(id,novoStatus){
   const orcs=DB.get(S.ORCAMENTOS);const i=orcs.findIndex(o=>o.id===id);if(i<0)return
   orcs[i].statusProd=novoStatus
@@ -3037,7 +3045,7 @@ function producaoHTML(){
     produzido: {label:'Produzido', cor:'#2E7D32',bg:'#EFF9F0',borda:'#A5D6A7',icone:'🟢'},
     cancelado: {label:'Cancelado', cor:'#B71C1C',bg:'#FFF0F0',borda:'#FFAAAA',icone:'🔴'},
   }
-  const orcsFilaRaw=DB.get(S.ORCAMENTOS).filter(o=>o.status==='aprovado')
+  const orcsFilaRaw=DB.get(S.ORCAMENTOS).filter(o=>o.status==='aprovado'&&!o.ocultarFila)
   const orcsFilaSort=orcsFilaRaw.slice().sort((a,b)=>{
     const order={aberto:0,produzindo:1,produzido:2,cancelado:3}
     const sa=order[a.statusProd||'aberto']??0,sb=order[b.statusProd||'aberto']??0
@@ -3080,6 +3088,7 @@ function producaoHTML(){
           </select>
           <button class="btn btn-s btn-sm" style="white-space:nowrap;font-size:11px" onclick="gerarVendaDeOrc('${o.id}')">💰 Gerar Venda</button>
           <button class="btn btn-s btn-sm" style="white-space:nowrap;font-size:11px" onclick="navigate('orcamentos')">Ver Orçamento</button>
+          <button class="btn-ic btn-d" title="Remover da fila" onclick="ocultarPedidoFila('${o.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>
       </div>`
     }).join('')}
@@ -3093,7 +3102,10 @@ function producaoHTML(){
   const difBg={Fácil:'#EFF9F0',Médio:'#FFF8EE',Difícil:'#FFF0F0'}
   const difBorder={Fácil:'#A5D6A7',Médio:'#F0C878',Difícil:'#FFAAAA'}
   const spCfgR={aberto:{l:'🔵 Aberto',c:'#5A8FD0',bg:'#EEF3FF',b:'#B8C8F0'},produzindo:{l:'🟡 Produzindo',c:'#B07030',bg:'#FFF3DC',b:'#F0C878'},produzido:{l:'🟢 Produzido',c:'#2E7D32',bg:'#EFF9F0',b:'#A5D6A7'},cancelado:{l:'🔴 Cancelado',c:'#B71C1C',bg:'#FFF0F0',b:'#FFAAAA'}}
-  const receitasCards=todasReceitas.map(r=>{
+  const receitasCards=todasReceitas.filter(r=>{
+    const stRec=statusRecHoje.find(x=>x.recId===r.id)
+    return stRec?.status!=='oculto'
+  }).map(r=>{
     const stRec=statusRecHoje.find(x=>x.recId===r.id)
     const jaConfirmado=prodsHojeIds.has(r.id)
     const sp=stRec?.status||(jaConfirmado?'produzido':'aberto')
@@ -3122,9 +3134,12 @@ function producaoHTML(){
             <option value="produzido"  ${sp==='produzido' ?'selected':''}>🟢 Produzido</option>
             <option value="cancelado"  ${sp==='cancelado' ?'selected':''}>🔴 Cancelado</option>
           </select>
-          ${!jaConfirmado&&sp!=='cancelado'
-            ?`<button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok);white-space:nowrap;font-size:11px" onclick="produzirReceita('${r.id}')">▶ Registrar Produção</button>`
-            :jaConfirmado?`<span style="font-size:11px;color:var(--ok);font-weight:700">✓ Ingredientes descontados</span>`:''}
+          <div style="display:flex;gap:5px;align-items:center">
+            ${!jaConfirmado&&sp!=='cancelado'
+              ?`<button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok);white-space:nowrap;font-size:11px" onclick="produzirReceita('${r.id}')">▶ Registrar Produção</button>`
+              :jaConfirmado?`<span style="font-size:11px;color:var(--ok);font-weight:700">✓ Registrado</span>`:''}
+            <button class="btn-ic btn-d" title="Ocultar hoje" onclick="ocultarReceitaHoje('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
         </div>
       </div>
     </div>`
