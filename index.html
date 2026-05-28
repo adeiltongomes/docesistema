@@ -1289,37 +1289,39 @@ function excluirProd(id){
   DB.set(S.PRODUTOS,DB.get(S.PRODUTOS).filter(x=>x.id!==id));toast('Item removido','ok');render('estoque')
 }
 
-// IDs dos ingredientes suspeitos abertos no modal de correção
+// IDs dos ingredientes no modal de correção
 let _correcaoIds=[]
+function _custoSuspeito(p){
+  const c=p.custo||0
+  if(!c)return true
+  if((p.un==='g'||p.un==='ml')&&c>0.05)return true   // >R$50/kg é suspeito
+  if((p.un==='kg'||p.un==='L')&&c>50)return true
+  return false
+}
 function recalcularCustos(){
   const prods=DB.get(S.PRODUTOS)
-  // detecta ingredientes com custo suspeito: >0,5 em g/ml, ou >500 em kg/L (>R$500/kg absurdo)
-  const suspeitos=prods.filter(p=>{
-    if(p.tipo!=='ingrediente')return false
-    const c=p.custo||0
-    if(!c)return true // sem custo também é problema
-    if((p.un==='g'||p.un==='ml')&&c>0.5)return true
-    if((p.un==='kg'||p.un==='L')&&c>500)return true
-    return false
-  })
-  if(!suspeitos.length){
-    openModal('✅ Custos OK',`<div style="text-align:center;padding:24px;color:var(--ok);font-size:15px;font-weight:700">Nenhum custo suspeito encontrado!<br><span style="font-size:12px;color:var(--txt3);font-weight:400">Todos os ingredientes parecem estar corretos.</span></div>`,
+  const ings=prods.filter(p=>p.tipo==='ingrediente')
+  if(!ings.length){
+    openModal('Sem ingredientes',`<div style="text-align:center;padding:24px">Nenhum ingrediente cadastrado.</div>`,
       `<button class="btn btn-p" onclick="closeModal()">OK</button>`)
     return
   }
-  _correcaoIds=suspeitos.map(p=>p.id)
+  _correcaoIds=ings.map(p=>p.id)
   const stl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt);background:var(--white)'
-  const rows=suspeitos.map((p,i)=>{
+  const rows=ings.map((p,i)=>{
+    const suspeito=_custoSuspeito(p)
     const g=v=>v>=1?v.toFixed(2):v>=0.001?v.toFixed(4):v.toFixed(6)
-    const custoAtual=p.custo?`R$${g(p.custo)}/${p.un}`:'sem custo'
+    const custoAtualStr=p.custo?fmtCustoLeg(p.custo,p.un):'sem custo'
+    const badgeColor=!p.custo?'#E8F5E9;color:#2E7D32':(suspeito?'#FCEAEA;color:var(--bad)':'#E8F5E9;color:#2E7D32')
     // tenta adivinhar qtd padrão pelo nome (ex: "395g" → 395)
     const match=(p.nome||'').match(/(\d[\d.,]*)\s*(g|kg|ml|L|l)\b/i)
     const qtdHint=match?match[1]:''
     const undHint=match?match[2].toLowerCase():(p.un||'g')
-    return`<div style="background:var(--white);border:1.5px solid ${p.custo?'var(--warn)':'var(--cream2)'};border-radius:9px;padding:12px 14px;margin-bottom:10px">
+    const borderColor=suspeito?'var(--warn)':'var(--cream2)'
+    return`<div style="background:var(--white);border:1.5px solid ${borderColor};border-radius:9px;padding:12px 14px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:13px;font-weight:700;color:var(--choc)">${p.nome}</span>
-        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#FCEAEA;color:var(--bad);font-weight:600">${custoAtual}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--choc)">${p.nome}${suspeito?' ⚠':''}  <span style="font-size:10px;font-weight:400;color:var(--txt3)">(${p.un})</span></span>
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${badgeColor};font-weight:600">${custoAtualStr}</span>
       </div>
       <div style="display:grid;grid-template-columns:auto 90px 70px 50px auto;gap:6px;align-items:center">
         <span style="font-size:12px;color:var(--txt3)">Paguei</span>
@@ -1336,11 +1338,15 @@ function recalcularCustos(){
       <div id="cc_prev_${i}" style="margin-top:6px;font-size:11px;color:var(--txt3);min-height:16px"></div>
     </div>`
   }).join('')
+  const nSusp=ings.filter(_custoSuspeito).length
+  const aviso=nSusp?`<p style="font-size:12px;background:#FFF3E0;border:1px solid #FFB300;border-radius:6px;padding:8px 10px;margin-bottom:10px">⚠ <strong>${nSusp} ingrediente(s)</strong> com custo suspeito (marcados com ⚠). Corrija preenchendo o preço e a quantidade.</p>`:
+    `<p style="font-size:12px;color:var(--ok);margin-bottom:10px">✅ Todos os custos parecem corretos. Você pode revisar e atualizar qualquer item.</p>`
   openModal('Corrigir Custos',`
-    <p style="font-size:12px;color:var(--txt3);margin-bottom:14px">Informe o preço pago e a quantidade para cada ingrediente. O custo por grama/ml será calculado automaticamente.</p>
+    ${aviso}
+    <p style="font-size:11px;color:var(--txt3);margin-bottom:14px">Preencha: quanto você pagou e em que quantidade. Deixe em branco os que não quer alterar.</p>
     ${rows}`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
-     <button class="btn btn-p" onclick="salvarCorrecoes()">💾 Salvar Todos</button>`,true)
+     <button class="btn btn-p" onclick="salvarCorrecoes()">💾 Salvar Preenchidos</button>`,true)
 }
 function calcCorrecao(i){
   const val=parseFloat((document.getElementById('cc_val_'+i)||{}).value)||0
