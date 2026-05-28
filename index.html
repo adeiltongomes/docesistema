@@ -1133,10 +1133,11 @@ function renderEstTable(){
   const el=document.getElementById('estTable');if(!el)return
   if(!rows.length){el.innerHTML=`<div class="empty"><h3>Nenhum item</h3><p>Cadastre o primeiro ${estoqueTab==='produto'?'produto':'ingrediente'}</p></div>`;return}
   const isP=estoqueTab==='produto'
-  el.innerHTML=`<table><thead><tr><th>Nome</th><th>Categoria</th><th>Estoque</th><th>Mín.</th><th>Status</th>${isP?'<th>Preço Venda</th>':''}<th>Custo Unit.</th><th></th></tr></thead><tbody>
+  el.innerHTML=`<table><thead><tr><th>Nome</th><th>Categoria</th><th>Estoque</th><th>Mín.</th><th>Status</th>${isP?'<th>Preço Venda</th>':''}<th>Custo / ${isP?'un':'unidade'}</th><th></th></tr></thead><tbody>
     ${rows.map(p=>{
       const pct=p.minimo>0?Math.min(100,Math.round((p.estoque/p.minimo)*100)):100
       const low=p.estoque<=p.minimo
+      const temCusto=p.custo>0
       return`<tr>
         <td><strong>${p.nome}</strong></td><td style="color:var(--txt3)">${p.cat||'-'}</td>
         <td><strong>${p.estoque} ${p.un}</strong></td><td>${p.minimo} ${p.un}</td>
@@ -1147,7 +1148,16 @@ function renderEstTable(){
           </div>
         </td>
         ${isP?`<td><strong>${fmt(p.preco)}</strong></td>`:''}
-        <td>${fmt(p.custo)}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:4px">
+            <input type="number" value="${p.custo||''}" min="0" step="0.0001" placeholder="0,00"
+              style="width:80px;padding:4px 7px;border:1.5px solid ${temCusto?'var(--cream2)':'var(--warn)'};border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);background:${temCusto?'var(--ivory)':'#FFF8F0'}"
+              onchange="salvarCustoInline('${p.id}',this.value,this)"
+              onkeydown="if(event.key==='Enter')this.blur()">
+            <span style="font-size:11px;color:var(--txt3);white-space:nowrap">/${p.un}</span>
+          </div>
+          ${!temCusto?`<div style="font-size:10px;color:var(--warn);font-weight:600;margin-top:2px">sem custo</div>`:''}
+        </td>
         <td style="white-space:nowrap">
           <button class="btn btn-s btn-sm" style="margin-right:4px" onclick="ajustarEstoque('${p.id}')">Ajustar</button>
           <button class="btn-ic" style="margin-right:4px" onclick="editProd('${p.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -1158,6 +1168,13 @@ function renderEstTable(){
   </tbody></table>`
 }
 
+function salvarCustoInline(id,val,inp){
+  const custo=parseFloat(val)||0
+  const prods=DB.get(S.PRODUTOS);const i=prods.findIndex(p=>p.id===id);if(i<0)return
+  prods[i].custo=custo;DB.set(S.PRODUTOS,prods)
+  if(inp){inp.style.border=custo>0?'1.5px solid var(--ok)':'1.5px solid var(--warn)';inp.style.background=custo>0?'var(--ivory)':'#FFF8F0';setTimeout(()=>{inp.style.border=custo>0?'1.5px solid var(--cream2)':'1.5px solid var(--warn)'},1200)}
+  toast(`Custo de "${prods[i].nome}" atualizado para R$${custo.toFixed(4)}/${prods[i].un}`,'ok')
+}
 function novoProd(){editId=null;openModal('Novo Item',prodForm({tipo:estoqueTab}),`<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarProd()">Salvar</button>`)}
 function editProd(id){const p=DB.get(S.PRODUTOS).find(x=>x.id===id);if(!p)return;editId=id;openModal('Editar Item',prodForm(p),`<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarProd()">Salvar</button>`)}
 function prodForm(p){
