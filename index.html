@@ -2152,8 +2152,7 @@ function atualizarCustoIngred(i){
   }
   atualizarTotalCustoReceita()
 }
-function atualizarTotalCustoReceita(){
-  const el=document.getElementById('recCustoTotal');if(!el)return
+function _calcCustoBase(){
   const prods=DB.get(S.PRODUTOS)
   let total=0;let parcial=false;let semCusto=0
   tempIng.forEach(ing=>{
@@ -2164,13 +2163,15 @@ function atualizarTotalCustoReceita(){
     if(qtdConv!=null&&qtdConv>0){total+=qtdConv*prod.custo;parcial=semCusto>0}
     else semCusto++
   })
-  if(total===0){el.innerHTML='';return}
   const rendStr=((document.getElementById('rRend')||{}).value||'').trim()
   const porcoes=parseFloat(rendStr.match(/[\d,.]+/)?.[0].replace(',','.'))||0
   const porLabel=rendStr.replace(/^[\d,.]+\s*/,'').trim()||'porção'
-  const custoPor=porcoes>1?total/porcoes:total
-  const markup=parseFloat(((document.getElementById('recMarkup')||{}).value||'').replace(',','.'))||0
-  const precoVenda=markup>0?custoPor*(1+markup/100):0
+  return{total,parcial,semCusto,porcoes,porLabel,custoPor:porcoes>1?total/porcoes:total}
+}
+function atualizarTotalCustoReceita(){
+  const el=document.getElementById('recCustoTotal');if(!el)return
+  const{total,parcial,semCusto,porcoes,porLabel,custoPor}=_calcCustoBase()
+  if(total===0){el.innerHTML='';return}
   const stlInp='padding:5px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt);background:var(--ivory);width:70px;text-align:right'
   el.innerHTML=`<div style="background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2);overflow:hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px">
@@ -2183,15 +2184,24 @@ function atualizarTotalCustoReceita(){
     </div>`:''}
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--cream2);background:var(--ivory)">
       <span style="font-size:12px;color:var(--txt2);font-weight:600;flex:1">Markup %</span>
-      <input id="recMarkup" type="number" min="0" step="1" placeholder="ex: 200" value="${markup||''}" oninput="atualizarTotalCustoReceita()" style="${stlInp}">
+      <input id="recMarkup" type="number" min="0" step="1" placeholder="ex: 200" oninput="atualizarMarkupResult()" style="${stlInp}">
       <span style="font-size:11px;color:var(--txt3)">%</span>
-      <span style="font-size:13px;font-weight:800;color:var(--ok);min-width:80px;text-align:right">${precoVenda>0?'→ '+fmt(precoVenda):'—'}</span>
-      ${precoVenda>0?`<button onclick="salvarPrecoVendaProduto(${precoVenda.toFixed(4)})" style="padding:5px 10px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">💾 Salvar preço</button>`:''}
+      <span id="recMarkupResult" style="font-size:13px;font-weight:800;color:var(--ok);min-width:80px;text-align:right">—</span>
+      <span id="recMarkupBtn"></span>
     </div>
-    ${precoVenda>0?`<div style="padding:6px 14px 10px;font-size:11px;color:var(--txt3)">
-      Custo ${fmt(custoPor)} + ${markup}% = <strong style="color:var(--ok)">${fmt(precoVenda)}</strong> por ${porcoes>1?porLabel:'unidade'}
-    </div>`:''}
+    <div id="recMarkupExplain"></div>
   </div>`
+}
+function atualizarMarkupResult(){
+  const{custoPor,porcoes,porLabel}=_calcCustoBase()
+  const markup=parseFloat((document.getElementById('recMarkup')||{}).value||0)||0
+  const precoVenda=markup>0?custoPor*(1+markup/100):0
+  const res=document.getElementById('recMarkupResult')
+  const btn=document.getElementById('recMarkupBtn')
+  const exp=document.getElementById('recMarkupExplain')
+  if(res)res.textContent=precoVenda>0?'→ '+fmt(precoVenda):'—'
+  if(btn)btn.innerHTML=precoVenda>0?`<button onclick="salvarPrecoVendaProduto(${precoVenda.toFixed(4)})" style="padding:5px 10px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">💾 Salvar preço</button>`:''
+  if(exp)exp.innerHTML=precoVenda>0?`<div style="padding:6px 14px 10px;font-size:11px;color:var(--txt3)">Custo ${fmt(custoPor)} + ${markup}% = <strong style="color:var(--ok)">${fmt(precoVenda)}</strong> por ${porcoes>1?porLabel:'unidade'}</div>`:''
 }
 function selectIngRec(i,pId){
   if(pId==='_custom'){tempIng[i].pId='_custom';tempIng[i].nome=''}
