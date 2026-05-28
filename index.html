@@ -2822,13 +2822,18 @@ function excluirReceita(id){
 function produzirReceita(id){
   const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
   const body=`
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:12px 14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2)">
       <div style="flex:1">
         <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:2px">Quantidade de lotes a produzir</div>
         <div style="font-size:11px;color:var(--txt3)">Os ingredientes serão descontados proporcionalmente do estoque</div>
       </div>
       <input type="number" id="prodLotes" value="1" min="1" step="1" oninput="atualizarPreviewProd('${id}',this.value)"
         style="width:70px;padding:8px;border:1.5px solid var(--cara);border-radius:8px;font-size:18px;font-weight:700;text-align:center;font-family:inherit;color:var(--txt);outline:none">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:700;color:var(--txt2);display:block;margin-bottom:5px">📍 Local de produção <span style="font-weight:400;color:var(--txt3)">(opcional)</span></label>
+      <input type="text" id="prodLocal" placeholder="Ex: Vila, Loja, Casa, Encomenda da Maria…"
+        style="width:100%;padding:8px 10px;border:1.5px solid var(--cream2);border-radius:8px;font-size:13px;font-family:inherit;color:var(--txt);outline:none;background:var(--white)">
     </div>
     <div id="previewProdIngredientes"></div>`
   openModal('▶ Iniciar Produção — '+r.nome,body,
@@ -2926,7 +2931,8 @@ function confirmarProducao(id){
   }
   DB.set(S.PRODUTOS,prods)
   // salva registro de produção
-  const rec={id:genId(),data:today(),recId:id,recNome:r.nome,lotes,ingredientes:ingUsados,custo:custoTotal,produzido}
+  const local=(document.getElementById('prodLocal')||{}).value||''
+  const rec={id:genId(),data:today(),recId:id,recNome:r.nome,lotes,ingredientes:ingUsados,custo:custoTotal,produzido,local}
   const hist=DB.get(S.PRODUCOES);hist.push(rec);DB.set(S.PRODUCOES,hist)
   closeModal()
   toast(`${lotes} lote${lotes>1?'s':''} produzido${lotes>1?'s':''}! ${descontados} ingrediente${descontados!==1?'s':''} descontado${descontados!==1?'s':''}${msgProd}.`,'ok')
@@ -2996,6 +3002,9 @@ function producaoHTML(){
                       <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M3 9h18v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9zM3 9V7a2 2 0 012-2h14a2 2 0 012 2v2M8 5V3M16 5V3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                       ${p.lotes} lote${p.lotes!==1?'s':''}
                     </span>
+                    ${p.local?`<span style="display:inline-flex;align-items:center;gap:4px;background:#EEF3FF;border:1px solid #B8C8F0;border-radius:20px;padding:3px 11px;font-size:11px;color:#3A5AA0;font-weight:700">
+                      <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" fill="#3A5AA0"/></svg>
+                      ${p.local}</span>`:''}
                     ${p.obs?`<span style="font-size:11px;color:var(--txt3);font-style:italic;background:var(--cream);border-radius:20px;padding:3px 10px">${p.obs}</span>`:''}
                   </div>
                 </div>
@@ -3053,7 +3062,10 @@ function editarProducao(id){
       <div class="fg"><label>Data da produção</label><input type="date" id="epData" value="${p.data||today()}" style="${stl}"></div>
       <div class="fg"><label>Lotes produzidos</label><input type="number" id="epLotes" value="${p.lotes||1}" min="1" step="1" style="${stl}"></div>
     </div>
-    <div class="fg"><label>Observação (opcional)</label><input id="epObs" value="${p.obs||''}" placeholder="Ex: produção para encomenda da Maria" style="${stl}"></div>`,
+    <div class="frow">
+      <div class="fg"><label>📍 Local de produção</label><input id="epLocal" value="${p.local||''}" placeholder="Ex: Vila, Loja, Casa…" style="${stl}"></div>
+      <div class="fg"><label>Observação</label><input id="epObs" value="${p.obs||''}" placeholder="Ex: encomenda da Maria" style="${stl}"></div>
+    </div>`,
     `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
      <button class="btn btn-p" onclick="salvarEdicaoProducao('${id}')">Salvar</button>`)
 }
@@ -3061,6 +3073,7 @@ function salvarEdicaoProducao(id){
   const all=DB.get(S.PRODUCOES);const i=all.findIndex(x=>x.id===id);if(i<0)return
   all[i].data=(document.getElementById('epData')||{}).value||all[i].data
   all[i].lotes=parseInt((document.getElementById('epLotes')||{}).value)||all[i].lotes
+  all[i].local=(document.getElementById('epLocal')||{}).value||''
   all[i].obs=(document.getElementById('epObs')||{}).value||''
   DB.set(S.PRODUCOES,all);closeModal();toast('Registro atualizado!','ok');render('producao')
 }
