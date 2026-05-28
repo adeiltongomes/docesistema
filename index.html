@@ -3301,77 +3301,140 @@ function imprimirReceita(id){
   const logoSrc=document.querySelector('.slogo img')?.src||''
   // ingredientes com custo
   let totalCusto=0,temCusto=false
-  const ingRows=(r.ingredientes||[]).map(i=>{
+  const ingRows=(r.ingredientes||[]).map((i,idx)=>{
     const prod=i.pId&&i.pId!=='_custom'?allProds.find(p=>p.id===i.pId):allProds.find(p=>p.nome.toLowerCase().trim()===(i.nome||'').toLowerCase().trim())
     const qtdConv=prod?converterUnidade(parseFloat(i.qtd)||0,i.und,prod.un):null
     const custo=prod&&prod.custo>0&&qtdConv!=null?qtdConv*prod.custo:null
     if(custo!=null){totalCusto+=custo;temCusto=true}
-    return`<tr>
-      <td style="padding:7px 10px;border-bottom:1px solid #EDE8E0;font-weight:600;color:#B8600A;width:90px">${i.qtd} ${i.und}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #EDE8E0">${i.nome}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #EDE8E0;text-align:right;color:#666;font-size:12px">${custo!=null?'R$'+custo.toFixed(2).replace('.',','):'—'}</td>
+    return`<tr class="${idx%2===1?'alt':''}">
+      <td class="qtd">${i.qtd} ${i.und}</td>
+      <td class="ing-nome">${i.nome}</td>
+      <td class="ing-custo">${custo!=null?'R$'+custo.toFixed(2).replace('.',','):'—'}</td>
     </tr>`
   }).join('')
   const diffColor={Fácil:'#2E7D32',Médio:'#B05000',Difícil:'#C62828'}
-  const infoItems=[
-    r.rendimento?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Rendimento</div><div style="font-size:14px;font-weight:700;color:#4A2C1E;margin-top:2px">${r.rendimento}</div></div>`:'',
-    r.tpreparo?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Preparo</div><div style="font-size:14px;font-weight:700;color:#4A2C1E;margin-top:2px">${r.tpreparo}</div></div>`:'',
-    r.tcozimento?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Forno</div><div style="font-size:14px;font-weight:700;color:#4A2C1E;margin-top:2px">${r.tcozimento}</div></div>`:'',
-    r.dif?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Dificuldade</div><div style="font-size:14px;font-weight:700;margin-top:2px;color:${diffColor[r.dif]||'#333'}">${r.dif}</div></div>`:'',
-    temCusto?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Custo Total</div><div style="font-size:14px;font-weight:700;color:#B8600A;margin-top:2px">R$${totalCusto.toFixed(2).replace('.',',')}</div></div>`:''
-  ].filter(Boolean).join('')
-  const w=window.open('','_blank','width=800,height=700')
+  const difBg={Fácil:'#EEF7EE',Médio:'#FFF3E0',Difícil:'#FDECEA'}
+  // quebra o preparo em passos numerados se tiver quebras de linha
+  const passos=(r.preparo||'').split(/\n+/).filter(s=>s.trim())
+  const preparoHTML=passos.length>1
+    ?passos.map((p,i)=>`<div class="passo"><span class="passo-num">${i+1}</span><span>${p.trim()}</span></div>`).join('')
+    :`<div class="passo-unico">${r.preparo||''}</div>`
+  const w=window.open('','_blank','width=860,height=750')
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-  <title>Receita — ${r.nome}</title>
+  <title>Ficha Técnica — ${r.nome}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Trebuchet MS',Arial,sans-serif;color:#1C1A18;background:#fff;padding:28px;max-width:720px;margin:0 auto}
-    .cab{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #4A2C1E;padding-bottom:14px;margin-bottom:20px;gap:16px}
-    .cab-logo{max-height:60px;max-width:120px;object-fit:contain}
-    .cab-nome{font-size:13px;font-weight:700;color:#4A2C1E}
-    .rec-titulo{font-size:26px;font-weight:800;color:#4A2C1E;margin-bottom:4px;line-height:1.2}
-    .rec-cat{display:inline-block;background:#F5EFE4;border:1px solid #D4A574;border-radius:20px;padding:2px 12px;font-size:11px;color:#8A5A2A;font-weight:600;margin-bottom:14px}
-    .info-bar{display:flex;gap:20px;flex-wrap:wrap;background:#FAF5EE;border:1px solid #EDE8E0;border-radius:8px;padding:12px 16px;margin-bottom:20px}
-    .sec-title{font-size:11px;font-weight:700;color:#8A5A2A;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:4px;border-bottom:1.5px solid #D4A574}
+    body{font-family:'Lato',Arial,sans-serif;background:#fff;color:#2C1A0E;max-width:780px;margin:0 auto;padding:0}
+    /* TOPO */
+    .topo{background:#4A2C1E;color:#fff;padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+    .topo-logo{max-height:48px;max-width:110px;object-fit:contain;filter:brightness(10)}
+    .topo-nome{font-size:13px;font-weight:700;letter-spacing:.5px;opacity:.9}
+    .topo-label{font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px}
+    /* FOTO BANNER */
+    .banner{width:100%;height:220px;object-fit:cover;display:block}
+    .banner-placeholder{height:8px;background:linear-gradient(90deg,#D4A574,#B8600A,#4A2C1E)}
+    /* CORPO */
+    .corpo{padding:24px 28px}
+    /* TÍTULO */
+    .rec-titulo{font-family:'Playfair Display',Georgia,serif;font-size:32px;font-weight:800;color:#4A2C1E;line-height:1.15;margin-bottom:6px}
+    .tags{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+    .tag{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+    .tag-cat{background:#F5EFE4;border:1px solid #D4A574;color:#8A5A2A}
+    .tag-dif{color:#fff}
+    /* CARDS DE INFO */
+    .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:24px}
+    .info-card{background:#FAF5EE;border:1.5px solid #EDE8E0;border-radius:10px;padding:12px 10px;text-align:center}
+    .info-card-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#A07050;margin-bottom:5px}
+    .info-card-val{font-size:16px;font-weight:900;color:#4A2C1E;line-height:1.1}
+    .info-card.custo{background:#FFF0E0;border-color:#E8B070}
+    .info-card.custo .info-card-val{color:#B8600A}
+    /* LAYOUT DUAS COLUNAS */
+    .duas-col{display:grid;grid-template-columns:240px 1fr;gap:24px;margin-bottom:24px}
+    /* INGREDIENTES */
+    .sec-hdr{background:#4A2C1E;color:#fff;padding:8px 14px;border-radius:7px 7px 0 0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px}
     table{width:100%;border-collapse:collapse}
-    .preparo{font-size:13px;line-height:1.9;color:#1C1A18;white-space:pre-wrap;background:#FAF5EE;border-radius:8px;padding:14px 16px}
-    .dicas{background:#FDF8EE;border-left:3px solid #D4A574;padding:10px 14px;border-radius:0 6px 6px 0;font-size:13px;color:#52493E;line-height:1.6}
-    .total-row{background:#F5EFE4;font-weight:700}
-    .total-row td{padding:8px 10px;border-top:2px solid #D4A574;color:#B8600A}
-    .footer{margin-top:28px;padding-top:12px;border-top:1px solid #EDE8E0;font-size:10px;color:#AAA;text-align:center}
-    @media print{body{padding:0} button{display:none}}
+    .qtd{padding:8px 10px;font-weight:700;color:#B8600A;font-size:13px;white-space:nowrap;width:80px;border-bottom:1px solid #EDE8E0}
+    .ing-nome{padding:8px 10px;border-bottom:1px solid #EDE8E0;font-size:13px}
+    .ing-custo{padding:8px 10px;border-bottom:1px solid #EDE8E0;text-align:right;font-size:11px;color:#A07050;white-space:nowrap}
+    tr.alt td{background:#FDFAF6}
+    .total-ing{background:#F5EFE4}
+    .total-ing td{padding:9px 10px;font-weight:700;border-top:2px solid #D4A574;color:#4A2C1E;font-size:13px}
+    .total-ing .ing-custo{color:#B8600A;font-size:14px;font-weight:900}
+    /* PREPARO */
+    .passo{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;font-size:13px;line-height:1.7;color:#2C1A0E}
+    .passo-num{flex-shrink:0;width:26px;height:26px;background:#4A2C1E;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;margin-top:1px}
+    .passo-unico{font-size:13px;line-height:1.9;color:#2C1A0E;white-space:pre-wrap;background:#FAF5EE;border-radius:8px;padding:14px}
+    /* DICAS */
+    .dicas-box{background:#FDF8EE;border-left:4px solid #D4A574;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:20px}
+    .dicas-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#B8600A;margin-bottom:6px}
+    .dicas-txt{font-size:13px;color:#52493E;line-height:1.7}
+    /* RODAPÉ */
+    .footer{background:#4A2C1E;color:#fff;padding:12px 28px;display:flex;justify-content:space-between;align-items:center;font-size:10px;opacity:.85;margin-top:8px}
+    /* BOTÃO */
+    .btn-print{display:inline-flex;align-items:center;gap:6px;padding:10px 24px;background:#4A2C1E;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin:20px 28px}
+    @media print{.btn-print,.no-print{display:none}body{max-width:100%}.corpo{padding:16px 20px}.topo{padding:10px 20px}}
   </style>
   </head><body>
-  <div class="cab">
-    <div>
-      ${logoSrc?`<img src="${logoSrc}" class="cab-logo" onerror="this.style.display='none'">`:''}
-      <div class="cab-nome">${nomeEmp}</div>
+  <!-- TOPO -->
+  <div class="topo">
+    <div style="display:flex;align-items:center;gap:12px">
+      ${logoSrc?`<img src="${logoSrc}" class="topo-logo" onerror="this.style.display='none'">`:''}
+      <div>
+        <div class="topo-label">Ficha Técnica</div>
+        <div class="topo-nome">${nomeEmp}</div>
+      </div>
     </div>
-    <div style="text-align:right;font-size:11px;color:#AAA">Ficha Técnica · ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    <div style="text-align:right">
+      <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:1px">Impresso em</div>
+      <div style="font-size:12px;font-weight:700">${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    </div>
   </div>
-  <h1 class="rec-titulo">${r.nome}</h1>
-  ${r.cat?`<span class="rec-cat">${r.cat}</span>`:''}
-  ${infoItems?`<div class="info-bar">${infoItems}</div>`:''}
-  ${r.ingredientes&&r.ingredientes.length?`
-  <div style="margin-bottom:20px">
-    <div class="sec-title">Ingredientes</div>
-    <table>
-      <tbody>${ingRows}</tbody>
-      ${temCusto?`<tfoot><tr class="total-row"><td colspan="2" style="padding:8px 10px;border-top:2px solid #D4A574;font-weight:700">Custo total da receita</td><td style="padding:8px 10px;border-top:2px solid #D4A574;text-align:right;font-weight:800">R$${totalCusto.toFixed(2).replace('.',',')}</td></tr></tfoot>`:''}
-    </table>
-  </div>`:''}
-  ${r.preparo?`
-  <div style="margin-bottom:20px">
-    <div class="sec-title">Modo de Preparo</div>
-    <div class="preparo">${r.preparo}</div>
-  </div>`:''}
-  ${r.dicas?`
-  <div style="margin-bottom:20px">
-    <div class="sec-title">Dicas</div>
-    <div class="dicas">${r.dicas}</div>
-  </div>`:''}
-  <div class="footer">${nomeEmp} · Impresso pelo DoceSistema</div>
-  <br><button onclick="window.print()" style="padding:8px 20px;background:#4A2C1E;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">🖨 Imprimir</button>
+  <!-- FOTO -->
+  ${r.foto?`<img src="${r.foto.data}" class="banner">`:`<div class="banner-placeholder"></div>`}
+  <!-- CORPO -->
+  <div class="corpo">
+    <h1 class="rec-titulo">${r.nome}</h1>
+    <div class="tags">
+      ${r.cat?`<span class="tag tag-cat">${r.cat}</span>`:''}
+      ${r.dif?`<span class="tag tag-dif" style="background:${diffColor[r.dif]||'#888'};background:${difBg[r.dif]||'#F5F5F5'};color:${diffColor[r.dif]||'#555'};border:1.5px solid ${diffColor[r.dif]||'#888'}">${r.dif}</span>`:''}
+    </div>
+    <!-- CARDS INFO -->
+    ${[r.rendimento,r.tpreparo,r.tcozimento,temCusto?1:0].some(Boolean)?`
+    <div class="info-grid">
+      ${r.rendimento?`<div class="info-card"><div class="info-card-lbl">Rendimento</div><div class="info-card-val">${r.rendimento}</div></div>`:''}
+      ${r.tpreparo?`<div class="info-card"><div class="info-card-lbl">Tempo de Preparo</div><div class="info-card-val">${r.tpreparo}</div></div>`:''}
+      ${r.tcozimento?`<div class="info-card"><div class="info-card-lbl">Forno / Cozimento</div><div class="info-card-val">${r.tcozimento}</div></div>`:''}
+      ${temCusto?`<div class="info-card custo"><div class="info-card-lbl">Custo da Receita</div><div class="info-card-val">R$${totalCusto.toFixed(2).replace('.',',')}</div></div>`:''}
+    </div>`:''}
+    <!-- DUAS COLUNAS: INGREDIENTES + PREPARO -->
+    <div class="duas-col">
+      <!-- INGREDIENTES -->
+      ${r.ingredientes&&r.ingredientes.length?`<div>
+        <div class="sec-hdr">Ingredientes</div>
+        <table>
+          <tbody>${ingRows}</tbody>
+          ${temCusto?`<tfoot><tr class="total-ing"><td class="qtd" colspan="2" style="color:#4A2C1E">Custo total</td><td class="ing-custo">R$${totalCusto.toFixed(2).replace('.',',')}</td></tr></tfoot>`:''}
+        </table>
+      </div>`:'<div></div>'}
+      <!-- PREPARO -->
+      ${r.preparo?`<div>
+        <div class="sec-hdr">Modo de Preparo</div>
+        <div style="background:#FAF5EE;border-radius:0 0 7px 7px;padding:14px 14px 6px">
+          ${preparoHTML}
+        </div>
+      </div>`:'<div></div>'}
+    </div>
+    <!-- DICAS -->
+    ${r.dicas?`<div class="dicas-box"><div class="dicas-lbl">💡 Dicas da Confeiteira</div><div class="dicas-txt">${r.dicas}</div></div>`:''}
+  </div>
+  <!-- RODAPÉ -->
+  <div class="footer">
+    <span>${nomeEmp} · DoceSistema — Gestão de Confeitaria</span>
+    <span>Ficha gerada em ${new Date().toLocaleDateString('pt-BR')}</span>
+  </div>
+  <button class="btn-print no-print" onclick="window.print()">🖨&nbsp; Imprimir / Salvar PDF</button>
   </body></html>`)
   w.document.close()
 }
