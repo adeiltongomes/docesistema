@@ -3106,15 +3106,15 @@ function imprimirProducao(){
     </tr>`).join('')
   const detRows=hist.map((p,idx)=>{
     const d=p.data?new Date(p.data+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'
-    const ings=(p.ingredientes||[]).map(i=>`${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}`).join(' · ')
-    const prod=p.produzido?`<div class="tag-prod">+${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(1)} ${p.produzido.un} ${p.produzido.nome}</div>`:''
+    const ings=(p.ingredientes||[]).map(i=>`<span class="pill">${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}</span>`).join('')
+    const prod=p.produzido?`<div class="tag-prod">+${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(1)} ${p.produzido.un}<br><span>${p.produzido.nome}</span></div>`:''
     return`<tr class="${idx%2===1?'alt':''}">
-      <td class="nowrap">${d}</td>
-      <td><strong>${p.recNome}</strong>${p.obs?`<div class="obs">${p.obs}</div>`:''}</td>
-      <td class="c">${p.lotes}</td>
+      <td class="nowrap" style="width:90px">${d}</td>
+      <td style="width:130px;min-width:110px"><strong style="font-size:13px">${p.recNome}</strong>${p.obs?`<div class="obs">${p.obs}</div>`:''}</td>
+      <td class="c" style="width:52px">${p.lotes}</td>
       <td class="ings">${ings}</td>
-      <td class="r custo">${p.custo>0?'R$'+p.custo.toFixed(2).replace('.',','):'—'}</td>
-      <td>${prod}</td>
+      <td class="r custo" style="width:80px;white-space:nowrap">${p.custo>0?'R$'+p.custo.toFixed(2).replace('.',','):'—'}</td>
+      <td style="width:110px">${prod}</td>
     </tr>`}).join('')
   const w=window.open('','_blank','width=900,height=700')
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -3155,9 +3155,11 @@ function imprimirProducao(){
     .custo{font-weight:700;color:#B8600A}
     .ings{font-size:11px;color:#7A5540;line-height:1.7}
     .obs{font-size:11px;color:#A07050;font-style:italic;margin-top:2px}
-    .tag-prod{display:inline-block;background:#EEF7EE;border:1px solid #A8D5A8;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;color:#2E7D32;white-space:nowrap}
+    .tag-prod{display:inline-block;background:#EEF7EE;border:1px solid #A8D5A8;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;color:#2E7D32;line-height:1.4}
+    .tag-prod span{font-weight:400;font-size:10px;color:#4A7A4A;display:block}
     .total-row td{background:#F5EFE4;font-weight:700;font-size:13px;border-top:2px solid #D4A574;border-bottom:none;color:#4A2C1E}
     .total-row .custo{font-size:15px;color:#B8600A}
+    .pill{display:inline-block;background:#F5EFE4;border:1px solid #E0D0BC;border-radius:4px;padding:2px 7px;font-size:10px;color:#6B3D1E;margin:2px 3px 2px 0;white-space:nowrap}
     /* RESUMO */
     .res-row td{padding:7px 12px;border-bottom:1px solid #F0EAE0}
     /* RODAPÉ */
