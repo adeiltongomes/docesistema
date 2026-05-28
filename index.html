@@ -3096,7 +3096,7 @@ function producaoHTML(){
   const receitasCards=todasReceitas.map(r=>{
     const stRec=statusRecHoje.find(x=>x.recId===r.id)
     const jaConfirmado=prodsHojeIds.has(r.id)
-    const sp=jaConfirmado?'produzido':(stRec?.status||'aberto')
+    const sp=stRec?.status||(jaConfirmado?'produzido':'aberto')
     const sc=spCfgR[sp]||spCfgR.aberto
     const isDimmed=sp==='produzido'||sp==='cancelado'
     return`<div style="background:${isDimmed?'#FAFAFA':sc.bg};border:1.5px solid ${sc.b};border-left:4px solid ${sc.c};border-radius:12px;overflow:hidden;display:flex;box-shadow:0 1px 5px rgba(74,44,30,.05);opacity:${isDimmed?'.75':'1'}">
