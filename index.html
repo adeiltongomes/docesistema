@@ -1289,54 +1289,92 @@ function excluirProd(id){
   DB.set(S.PRODUTOS,DB.get(S.PRODUTOS).filter(x=>x.id!==id));toast('Item removido','ok');render('estoque')
 }
 
+// IDs dos ingredientes suspeitos abertos no modal de correção
+let _correcaoIds=[]
 function recalcularCustos(){
   const prods=DB.get(S.PRODUTOS)
-  const compras=DB.get(S.COMPRAS)
-  // recalcula custo de cada ingrediente pela compra mais recente (data desc = última prevalece)
-  const fixes={}
-  ;[...compras].sort((a,b)=>a.data.localeCompare(b.data)).forEach(c=>{
-    ;(c.itens||[]).forEach(it=>{
-      if(!it.pId||it.pId==='_free')return
-      const prod=prods.find(p=>p.id===it.pId);if(!prod)return
-      const valor=it.valor!=null?parseFloat(it.valor):(parseFloat(it.pu)||0)*(parseFloat(it.qtd)||0)
-      const qtd=parseFloat(it.qtd)||0,und=it.und||''
-      if(!qtd||!valor)return
-      let qtdBase=qtd
-      if(und&&und!==prod.un){const qb=converterUnidade(qtd,und,prod.un);if(qb!=null&&qb>0)qtdBase=qb;else return}
-      if(qtdBase>0)fixes[it.pId]={custo:valor/qtdBase,data:c.data,forn:c.forn}
-    })
+  // detecta ingredientes com custo suspeito: >0,5 em g/ml, ou >500 em kg/L (>R$500/kg absurdo)
+  const suspeitos=prods.filter(p=>{
+    if(p.tipo!=='ingrediente')return false
+    const c=p.custo||0
+    if(!c)return true // sem custo também é problema
+    if((p.un==='g'||p.un==='ml')&&c>0.5)return true
+    if((p.un==='kg'||p.un==='L')&&c>500)return true
+    return false
   })
-  const f=v=>v>=1?v.toFixed(2):v>=0.001?v.toFixed(4):v.toFixed(6)
-  let corrigidos=0,suspeitos=[]
-  const linhas=[]
-  prods.forEach(p=>{
-    if(p.tipo!=='ingrediente')return
-    const fix=fixes[p.id]
-    if(fix&&Math.abs(fix.custo-(p.custo||0))>0.000001){
-      linhas.push({nome:p.nome,de:f(p.custo||0)+'/'+p.un,para:f(fix.custo)+'/'+p.un,forn:fix.forn,ok:true})
-      p.custo=fix.custo;corrigidos++
-    } else if(!fix&&(p.custo||0)>1&&(p.un==='g'||p.un==='ml')){
-      suspeitos.push(p.nome)
-    }
+  if(!suspeitos.length){
+    openModal('✅ Custos OK',`<div style="text-align:center;padding:24px;color:var(--ok);font-size:15px;font-weight:700">Nenhum custo suspeito encontrado!<br><span style="font-size:12px;color:var(--txt3);font-weight:400">Todos os ingredientes parecem estar corretos.</span></div>`,
+      `<button class="btn btn-p" onclick="closeModal()">OK</button>`)
+    return
+  }
+  _correcaoIds=suspeitos.map(p=>p.id)
+  const stl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt);background:var(--white)'
+  const rows=suspeitos.map((p,i)=>{
+    const g=v=>v>=1?v.toFixed(2):v>=0.001?v.toFixed(4):v.toFixed(6)
+    const custoAtual=p.custo?`R$${g(p.custo)}/${p.un}`:'sem custo'
+    // tenta adivinhar qtd padrão pelo nome (ex: "395g" → 395)
+    const match=(p.nome||'').match(/(\d[\d.,]*)\s*(g|kg|ml|L|l)\b/i)
+    const qtdHint=match?match[1]:''
+    const undHint=match?match[2].toLowerCase():(p.un||'g')
+    return`<div style="background:var(--white);border:1.5px solid ${p.custo?'var(--warn)':'var(--cream2)'};border-radius:9px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:700;color:var(--choc)">${p.nome}</span>
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#FCEAEA;color:var(--bad);font-weight:600">${custoAtual}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 90px 70px 50px auto;gap:6px;align-items:center">
+        <span style="font-size:12px;color:var(--txt3)">Paguei</span>
+        <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--txt3)">R$</span>
+          <input id="cc_val_${i}" type="number" min="0" step="0.01" placeholder="0,00"
+            style="${stl};padding-left:26px" oninput="calcCorrecao(${i})"></div>
+        <span style="font-size:12px;color:var(--txt3);text-align:center">por</span>
+        <input id="cc_qtd_${i}" type="number" min="0" step="any" placeholder="qtd" value="${qtdHint}"
+          style="${stl};text-align:right" oninput="calcCorrecao(${i})">
+        <select id="cc_und_${i}" style="${stl}" onchange="calcCorrecao(${i})">
+          ${['g','kg','ml','L','un'].map(u=>`<option value="${u}" ${undHint===u?'selected':''}>${u}</option>`).join('')}
+        </select>
+      </div>
+      <div id="cc_prev_${i}" style="margin-top:6px;font-size:11px;color:var(--txt3);min-height:16px"></div>
+    </div>`
+  }).join('')
+  openModal('Corrigir Custos',`
+    <p style="font-size:12px;color:var(--txt3);margin-bottom:14px">Informe o preço pago e a quantidade para cada ingrediente. O custo por grama/ml será calculado automaticamente.</p>
+    ${rows}`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-p" onclick="salvarCorrecoes()">💾 Salvar Todos</button>`,true)
+}
+function calcCorrecao(i){
+  const val=parseFloat((document.getElementById('cc_val_'+i)||{}).value)||0
+  const qtd=parseFloat((document.getElementById('cc_qtd_'+i)||{}).value)||0
+  const und=(document.getElementById('cc_und_'+i)||{}).value||'g'
+  const prev=document.getElementById('cc_prev_'+i);if(!prev)return
+  if(!val||!qtd){prev.textContent='';return}
+  const pId=_correcaoIds[i]
+  const prod=DB.get(S.PRODUTOS).find(p=>p.id===pId);if(!prod){prev.textContent='';return}
+  let qtdBase=qtd
+  if(und!==prod.un){const qb=converterUnidade(qtd,und,prod.un);if(qb!=null&&qb>0)qtdBase=qb;else{prev.innerHTML=`<span style="color:var(--bad)">⚠ Unidade ${und} incompatível com ${prod.un} do estoque</span>`;return}}
+  const custo=val/qtdBase
+  const leg=fmtCustoLeg(custo,prod.un)
+  const custo200=custo*200
+  prev.innerHTML=`<span style="color:var(--ok);font-weight:700">→ ${leg}</span><span style="color:var(--txt3);margin-left:8px">(ex: 200${prod.un} = R$${custo200>=1?custo200.toFixed(2):custo200.toFixed(4)})</span>`
+}
+function salvarCorrecoes(){
+  const prods=DB.get(S.PRODUTOS)
+  let salvos=0,erros=[]
+  _correcaoIds.forEach((pId,i)=>{
+    const val=parseFloat((document.getElementById('cc_val_'+i)||{}).value)||0
+    const qtd=parseFloat((document.getElementById('cc_qtd_'+i)||{}).value)||0
+    const und=(document.getElementById('cc_und_'+i)||{}).value||'g'
+    if(!val||!qtd){erros.push(i);return}
+    const idx=prods.findIndex(p=>p.id===pId);if(idx<0)return
+    let qtdBase=qtd
+    if(und!==prods[idx].un){const qb=converterUnidade(qtd,und,prods[idx].un);if(qb!=null&&qb>0)qtdBase=qb;else{erros.push(i);return}}
+    prods[idx].custo=val/qtdBase;salvos++
   })
-  if(corrigidos>0)DB.set(S.PRODUTOS,prods)
-  // exibir resultado em modal
-  const linhasHtml=linhas.map(l=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--cream2)">
-      <span style="flex:1;font-size:13px;font-weight:600">${l.nome}</span>
-      <span style="font-size:11px;color:var(--bad);text-decoration:line-through">${l.de}</span>
-      <span style="font-size:11px;color:var(--txt3)">→</span>
-      <span style="font-size:12px;font-weight:700;color:var(--ok)">${l.para}</span>
-    </div>`).join('')
-  const suspHtml=suspeitos.length?`<div style="margin-top:14px;padding:10px 12px;background:#FFF8F0;border-radius:8px;border:1.5px solid var(--warn)">
-    <div style="font-size:11px;font-weight:700;color:var(--warn);margin-bottom:6px">⚠ Custo suspeito — sem compra registrada (corrija manualmente no Estoque):</div>
-    ${suspeitos.map(n=>`<div style="font-size:12px;color:var(--txt2);padding:2px 0">• ${n}</div>`).join('')}
-  </div>`:''
-  openModal('Resultado — Recalcular Custos',`
-    ${corrigidos===0&&!suspeitos.length?`<div style="text-align:center;padding:20px;color:var(--ok);font-weight:700">✅ Todos os custos já estão corretos!</div>`:''}
-    ${linhas.length?`<div style="margin-bottom:6px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">${corrigidos} custo(s) recalculado(s)</div>${linhasHtml}`:''}
-    ${suspHtml}`,
-    `<button class="btn btn-p" onclick="closeModal();render('estoque')">OK</button>`)
+  if(salvos>0)DB.set(S.PRODUTOS,prods)
+  closeModal()
+  if(erros.length)toast(`${salvos} salvo(s). ${erros.length} item(s) sem valor — preencha e tente novamente.`,'warn')
+  else toast(`✅ ${salvos} custo(s) corrigido(s)!`,'ok')
+  render('estoque')
 }
 
 // ===== COMPRAS =====
