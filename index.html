@@ -2437,6 +2437,7 @@ function renderReceitasGrid(){
         <div class="rec-actions">
           <button class="btn btn-s btn-sm" onclick="verReceita('${r.id}')">Ver Receita</button>
           <button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="this.disabled=true;this.textContent='⏳ Aguarde...';produzirReceita('${r.id}');setTimeout(()=>{this.disabled=false;this.textContent='▶ Iniciar Produção'},400)">▶ Iniciar Produção</button>
+          <button class="btn-ic" onclick="imprimirReceita('${r.id}')" title="Imprimir receita"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="btn-ic" onclick="editReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="btn-ic btn-d" onclick="excluirReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>
@@ -3177,7 +3178,90 @@ function verReceita(id){
       <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;font-size:11px;font-weight:600;letter-spacing:.3px;text-shadow:0 1px 4px rgba(0,0,0,.7)">Clique para assistir no YouTube</div>
     </a>`:
     `<a href="${r.video}" target="_blank" rel="noopener" class="btn btn-s btn-sm" style="margin-bottom:14px;display:inline-flex"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Assistir vídeo</a>`}`:''}
-  `,`<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-s" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="closeModal();produzirReceita('${r.id}')">▶ Iniciar Produção</button><button class="btn btn-p" onclick="closeModal();editReceita('${r.id}')">Editar</button>`,false)
+  `,`<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-s" onclick="imprimirReceita('${r.id}')">🖨 Imprimir</button><button class="btn btn-s" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="closeModal();produzirReceita('${r.id}')">▶ Iniciar Produção</button><button class="btn btn-p" onclick="closeModal();editReceita('${r.id}')">Editar</button>`,false)
+}
+
+function imprimirReceita(id){
+  const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
+  const allProds=DB.get(S.PRODUTOS)
+  const emp=DB.get(S.EMPRESA)||{}
+  const nomeEmp=emp.fantasia||emp.nome||'DoceSistema'
+  const logoSrc=document.querySelector('.slogo img')?.src||''
+  // ingredientes com custo
+  let totalCusto=0,temCusto=false
+  const ingRows=(r.ingredientes||[]).map(i=>{
+    const prod=i.pId&&i.pId!=='_custom'?allProds.find(p=>p.id===i.pId):allProds.find(p=>p.nome.toLowerCase().trim()===(i.nome||'').toLowerCase().trim())
+    const qtdConv=prod?converterUnidade(parseFloat(i.qtd)||0,i.und,prod.un):null
+    const custo=prod&&prod.custo>0&&qtdConv!=null?qtdConv*prod.custo:null
+    if(custo!=null){totalCusto+=custo;temCusto=true}
+    return`<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #EDE8E0;font-weight:600;color:#B8600A;width:90px">${i.qtd} ${i.und}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #EDE8E0">${i.nome}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #EDE8E0;text-align:right;color:#666;font-size:12px">${custo!=null?'R$'+custo.toFixed(2).replace('.',','):'—'}</td>
+    </tr>`
+  }).join('')
+  const diffColor={Fácil:'#2E7D32',Médio:'#B05000',Difícil:'#C62828'}
+  const infoItems=[
+    r.rendimento?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Rendimento</div><div style="font-size:14px;font-weight:700;color:#4A2C1E;margin-top:2px">${r.rendimento}</div></div>`:'',
+    r.tpreparo?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Preparo</div><div style="font-size:14px;font-weight:700;color:#4A2C1E;margin-top:2px">${r.tpreparo}</div></div>`:'',
+    r.tcozimento?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Forno</div><div style="font-size:14px;font-weight:700;color:#4A2C1E;margin-top:2px">${r.tcozimento}</div></div>`:'',
+    r.dif?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Dificuldade</div><div style="font-size:14px;font-weight:700;margin-top:2px;color:${diffColor[r.dif]||'#333'}">${r.dif}</div></div>`:'',
+    temCusto?`<div style="text-align:center"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px">Custo Total</div><div style="font-size:14px;font-weight:700;color:#B8600A;margin-top:2px">R$${totalCusto.toFixed(2).replace('.',',')}</div></div>`:''
+  ].filter(Boolean).join('')
+  const w=window.open('','_blank','width=800,height=700')
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Receita — ${r.nome}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Trebuchet MS',Arial,sans-serif;color:#1C1A18;background:#fff;padding:28px;max-width:720px;margin:0 auto}
+    .cab{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #4A2C1E;padding-bottom:14px;margin-bottom:20px;gap:16px}
+    .cab-logo{max-height:60px;max-width:120px;object-fit:contain}
+    .cab-nome{font-size:13px;font-weight:700;color:#4A2C1E}
+    .rec-titulo{font-size:26px;font-weight:800;color:#4A2C1E;margin-bottom:4px;line-height:1.2}
+    .rec-cat{display:inline-block;background:#F5EFE4;border:1px solid #D4A574;border-radius:20px;padding:2px 12px;font-size:11px;color:#8A5A2A;font-weight:600;margin-bottom:14px}
+    .info-bar{display:flex;gap:20px;flex-wrap:wrap;background:#FAF5EE;border:1px solid #EDE8E0;border-radius:8px;padding:12px 16px;margin-bottom:20px}
+    .sec-title{font-size:11px;font-weight:700;color:#8A5A2A;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:4px;border-bottom:1.5px solid #D4A574}
+    table{width:100%;border-collapse:collapse}
+    .preparo{font-size:13px;line-height:1.9;color:#1C1A18;white-space:pre-wrap;background:#FAF5EE;border-radius:8px;padding:14px 16px}
+    .dicas{background:#FDF8EE;border-left:3px solid #D4A574;padding:10px 14px;border-radius:0 6px 6px 0;font-size:13px;color:#52493E;line-height:1.6}
+    .total-row{background:#F5EFE4;font-weight:700}
+    .total-row td{padding:8px 10px;border-top:2px solid #D4A574;color:#B8600A}
+    .footer{margin-top:28px;padding-top:12px;border-top:1px solid #EDE8E0;font-size:10px;color:#AAA;text-align:center}
+    @media print{body{padding:0} button{display:none}}
+  </style>
+  </head><body>
+  <div class="cab">
+    <div>
+      ${logoSrc?`<img src="${logoSrc}" class="cab-logo" onerror="this.style.display='none'">`:''}
+      <div class="cab-nome">${nomeEmp}</div>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#AAA">Ficha Técnica · ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+  </div>
+  <h1 class="rec-titulo">${r.nome}</h1>
+  ${r.cat?`<span class="rec-cat">${r.cat}</span>`:''}
+  ${infoItems?`<div class="info-bar">${infoItems}</div>`:''}
+  ${r.ingredientes&&r.ingredientes.length?`
+  <div style="margin-bottom:20px">
+    <div class="sec-title">Ingredientes</div>
+    <table>
+      <tbody>${ingRows}</tbody>
+      ${temCusto?`<tfoot><tr class="total-row"><td colspan="2" style="padding:8px 10px;border-top:2px solid #D4A574;font-weight:700">Custo total da receita</td><td style="padding:8px 10px;border-top:2px solid #D4A574;text-align:right;font-weight:800">R$${totalCusto.toFixed(2).replace('.',',')}</td></tr></tfoot>`:''}
+    </table>
+  </div>`:''}
+  ${r.preparo?`
+  <div style="margin-bottom:20px">
+    <div class="sec-title">Modo de Preparo</div>
+    <div class="preparo">${r.preparo}</div>
+  </div>`:''}
+  ${r.dicas?`
+  <div style="margin-bottom:20px">
+    <div class="sec-title">Dicas</div>
+    <div class="dicas">${r.dicas}</div>
+  </div>`:''}
+  <div class="footer">${nomeEmp} · Impresso pelo DoceSistema</div>
+  <br><button onclick="window.print()" style="padding:8px 20px;background:#4A2C1E;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">🖨 Imprimir</button>
+  </body></html>`)
+  w.document.close()
 }
 
 // ===== PRINT =====
