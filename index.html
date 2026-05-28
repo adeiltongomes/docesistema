@@ -2120,6 +2120,14 @@ function renderIngredientes(){
     const semCusto=prod&&!prod.custo
     return`
     <div style="background:var(--ivory);border:1.5px solid var(--cream2);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+      ${prod?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--cream2)">
+        <span style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Taxa base:</span>
+        ${taxaBase
+          ?`<span style="font-size:11px;font-weight:700;color:var(--ok)">${taxaBase}</span>
+             <span style="font-size:10px;color:var(--txt3)">· estoque: ${(prod.estoque||0)%1===0?(prod.estoque||0):(prod.estoque||0).toFixed(2)} ${prod.un}</span>`
+          :`<span style="font-size:11px;color:var(--warn);font-weight:600">sem custo cadastrado</span>
+             <button onclick="editCustoRapido('${prod.id}',${i})" style="font-size:10px;padding:2px 7px;background:var(--warn);color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600">Cadastrar</button>`}
+      </div>`:''}
       <div style="display:grid;grid-template-columns:70px 90px 1fr 80px 24px 30px;gap:6px;align-items:center">
         <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value;atualizarCustoIngred(${i})" style="${stl}">
         <select onchange="tempIng[${i}].und=this.value;atualizarCustoIngred(${i})" style="${stl}">
@@ -2139,14 +2147,6 @@ function renderIngredientes(){
         ${prod?`<button class="btn-ic" onclick="editCustoRapido('${prod.id}',${i})" title="Editar custo do ingrediente" style="padding:4px;color:${semCusto?'var(--warn)':'var(--txt3)'}"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`:'<span></span>'}
         <button class="btn-ic btn-d" onclick="remIngrediente(${i})" style="padding:5px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
-      ${prod?`<div style="display:flex;align-items:center;gap:6px;margin-top:5px;padding-top:5px;border-top:1px solid var(--cream2)">
-        <span style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Taxa base:</span>
-        ${taxaBase
-          ?`<span style="font-size:11px;font-weight:700;color:var(--ok)">${taxaBase}</span>
-             <span style="font-size:10px;color:var(--txt3)">· estoque: ${(prod.estoque||0)%1===0?(prod.estoque||0):(prod.estoque||0).toFixed(2)} ${prod.un}</span>`
-          :`<span style="font-size:11px;color:var(--warn);font-weight:600">sem custo cadastrado</span>
-             <button onclick="editCustoRapido('${prod.id}',${i})" style="font-size:10px;padding:2px 7px;background:var(--warn);color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600">Cadastrar</button>`}
-      </div>`:''}
     </div>`}).join('')
 }
 function atualizarCustoIngred(i){
