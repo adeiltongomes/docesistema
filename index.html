@@ -3094,136 +3094,180 @@ function imprimirProducao(){
   const total=hist.reduce((a,x)=>a+(x.custo||0),0)
   const mes=today().slice(0,7)
   const totalMes=hist.filter(x=>(x.data||'').startsWith(mes)).reduce((a,x)=>a+(x.custo||0),0)
-  // agrupa por receita para resumo
   const por={}
   hist.forEach(p=>{if(!por[p.recNome])por[p.recNome]={n:0,lotes:0,custo:0};por[p.recNome].n++;por[p.recNome].lotes+=p.lotes||1;por[p.recNome].custo+=p.custo||0})
-  const resumoRows=Object.entries(por).sort((a,b)=>b[1].n-a[1].n).map(([nome,v])=>`
+  const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+  const resumoEntries=Object.entries(por).sort((a,b)=>b[1].n-a[1].n)
+  const resumoRows=resumoEntries.map(([nome,v],i)=>`
     <tr>
-      <td>${nome}</td>
-      <td class="c">${v.n}×</td>
+      <td><span class="rank">${i+1}</span> ${nome}</td>
+      <td class="c"><span class="badge-n">${v.n}×</span></td>
       <td class="c">${v.lotes} lote${v.lotes!==1?'s':''}</td>
-      <td class="r">${v.custo>0?'R$'+v.custo.toFixed(2).replace('.',','):'—'}</td>
+      <td class="r"><strong>${v.custo>0?'R$'+v.custo.toFixed(2).replace('.',','):'—'}</strong></td>
     </tr>`).join('')
-  const detRows=hist.map((p,idx)=>{
-    const d=p.data?new Date(p.data+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'
+  const detCards=hist.map(p=>{
+    const d=p.data?new Date(p.data+'T12:00'):'—'
+    const dStr=d instanceof Date?`${String(d.getDate()).padStart(2,'0')} ${meses[d.getMonth()].slice(0,3)} ${d.getFullYear()}`:'—'
     const ings=(p.ingredientes||[]).map(i=>`<span class="pill">${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}</span>`).join('')
-    const prod=p.produzido?`<div class="tag-prod">+${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(1)} ${p.produzido.un}<br><span>${p.produzido.nome}</span></div>`:''
-    return`<tr class="${idx%2===1?'alt':''}">
-      <td class="nowrap" style="width:90px">${d}</td>
-      <td style="width:130px;min-width:110px"><strong style="font-size:13px">${p.recNome}</strong>${p.obs?`<div class="obs">${p.obs}</div>`:''}</td>
-      <td class="c" style="width:52px">${p.lotes}</td>
-      <td class="ings">${ings}</td>
-      <td class="r custo" style="width:80px;white-space:nowrap">${p.custo>0?'R$'+p.custo.toFixed(2).replace('.',','):'—'}</td>
-      <td style="width:110px">${prod}</td>
-    </tr>`}).join('')
-  const w=window.open('','_blank','width=900,height=700')
+    const produzido=p.produzido?`<span class="tag-prod">+ ${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(1)} ${p.produzido.un} <strong>${p.produzido.nome}</strong></span>`:''
+    const custoStr=p.custo>0?'R$'+p.custo.toFixed(2).replace('.',','):'—'
+    return`<div class="card-prod">
+      <div class="cp-top">
+        <div class="cp-main">
+          <span class="cp-nome">${p.recNome}</span>
+          ${p.lotes>1?`<span class="badge-lotes">${p.lotes} lotes</span>`:`<span class="badge-lotes">1 lote</span>`}
+          ${p.obs?`<span class="cp-obs">${p.obs}</span>`:''}
+        </div>
+        <div class="cp-right">
+          <div class="cp-data">${dStr}</div>
+          <div class="cp-custo">${custoStr}</div>
+        </div>
+      </div>
+      <div class="cp-ings">${ings||'<span style="color:#B0A090;font-style:italic;font-size:11px">sem ingredientes registrados</span>'}</div>
+      ${produzido?`<div class="cp-prod">${produzido}</div>`:''}
+    </div>`}).join('')
+  const w=window.open('','_blank','width=960,height=720')
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
   <title>Relatório de Produção — ${nomeEmp}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Lato',Arial,sans-serif;background:#fff;color:#2C1A0E;padding:32px;font-size:13px}
-    /* CABEÇALHO */
-    .cab{display:flex;align-items:center;justify-content:space-between;padding-bottom:18px;margin-bottom:24px;border-bottom:3px solid #4A2C1E}
-    .cab-left{display:flex;align-items:center;gap:14px}
-    .cab-logo{max-height:64px;max-width:130px;object-fit:contain}
-    .cab-nome{font-size:20px;font-weight:900;color:#4A2C1E;line-height:1.1}
-    .cab-sub{font-size:11px;color:#A07050;margin-top:3px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
-    .cab-right{text-align:right}
-    .cab-titulo{font-size:22px;font-weight:900;color:#4A2C1E;letter-spacing:.3px}
-    .cab-data{font-size:11px;color:#A07050;margin-top:4px}
-    /* CARDS DE RESUMO */
-    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-    .card{border-radius:10px;padding:14px 16px;text-align:center}
-    .card.choc{background:#4A2C1E;color:#fff}
-    .card.rose{background:#F9EBE0;border:1.5px solid #E8C4A0}
-    .card.green{background:#EEF7EE;border:1.5px solid #A8D5A8}
-    .card-val{font-size:24px;font-weight:900;line-height:1.1;margin-bottom:3px}
-    .card.choc .card-val{color:#F5D9B0}
-    .card.rose .card-val{color:#B8600A}
-    .card.green .card-val{color:#2E7D32}
-    .card-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.75}
+    body{font-family:'Lato',sans-serif;background:#FAF7F4;color:#2C1A0E;font-size:13px}
+    /* BANNER TOPO */
+    .banner{background:linear-gradient(135deg,#3A1F10 0%,#5C3520 60%,#7A4A2A 100%);color:#fff;padding:28px 36px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+    .ban-left{display:flex;align-items:center;gap:16px}
+    .ban-logo{max-height:56px;max-width:110px;object-fit:contain;filter:brightness(1.1)}
+    .ban-empresa{font-size:18px;font-weight:900;letter-spacing:.3px;color:#F5D9B0;line-height:1.1}
+    .ban-sub{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#C49A68;margin-top:4px}
+    .ban-right{text-align:right}
+    .ban-titulo{font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:700;color:#fff;line-height:1.1}
+    .ban-data{font-size:11px;color:#C49A68;margin-top:6px;font-style:italic}
+    /* CORPO */
+    .body{padding:28px 36px}
+    /* STATS */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+    .stat{background:#fff;border-radius:12px;padding:16px 18px;border:1px solid #EDE0D0;display:flex;align-items:center;gap:14px}
+    .stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px}
+    .stat.choc .stat-icon{background:#4A2C1E}
+    .stat.amber .stat-icon{background:#FFF3E0;border:1px solid #FFB74D}
+    .stat.green .stat-icon{background:#E8F5E9;border:1px solid #81C784}
+    .stat.rose .stat-icon{background:#FDE8E8;border:1px solid #EF9A9A}
+    .stat-body{}
+    .stat-val{font-size:22px;font-weight:900;line-height:1;margin-bottom:3px}
+    .stat.choc .stat-val{color:#4A2C1E}
+    .stat.amber .stat-val{color:#BF6900}
+    .stat.green .stat-val{color:#2E7D32}
+    .stat.rose .stat-val{color:#C62828}
+    .stat-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#A09080}
     /* SEÇÃO */
-    .sec{margin-bottom:24px}
-    .sec-hdr{background:#4A2C1E;color:#fff;padding:7px 14px;border-radius:6px 6px 0 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px}
-    /* TABELAS */
-    table{width:100%;border-collapse:collapse}
-    th{background:#F5EFE4;color:#6B3D1E;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:8px 12px;border-bottom:2px solid #D4A574;white-space:nowrap}
-    td{padding:9px 12px;border-bottom:1px solid #F0EAE0;vertical-align:top;color:#2C1A0E}
-    tr.alt td{background:#FDFAF6}
-    .c{text-align:center}.r{text-align:right}.nowrap{white-space:nowrap}
-    .custo{font-weight:700;color:#B8600A}
-    .ings{font-size:11px;color:#7A5540;line-height:1.7}
-    .obs{font-size:11px;color:#A07050;font-style:italic;margin-top:2px}
-    .tag-prod{display:inline-block;background:#EEF7EE;border:1px solid #A8D5A8;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;color:#2E7D32;line-height:1.4}
-    .tag-prod span{font-weight:400;font-size:10px;color:#4A7A4A;display:block}
-    .total-row td{background:#F5EFE4;font-weight:700;font-size:13px;border-top:2px solid #D4A574;border-bottom:none;color:#4A2C1E}
-    .total-row .custo{font-size:15px;color:#B8600A}
-    .pill{display:inline-block;background:#F5EFE4;border:1px solid #E0D0BC;border-radius:4px;padding:2px 7px;font-size:10px;color:#6B3D1E;margin:2px 3px 2px 0;white-space:nowrap}
-    /* RESUMO */
-    .res-row td{padding:7px 12px;border-bottom:1px solid #F0EAE0}
+    .sec{margin-bottom:28px}
+    .sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #E8D8C4}
+    .sec-titulo{font-family:'Playfair Display',Georgia,serif;font-size:17px;font-weight:700;color:#4A2C1E}
+    .sec-count{font-size:11px;font-weight:700;color:#A09080;background:#F0E8DC;border-radius:20px;padding:2px 9px}
+    /* TABELA RESUMO */
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #EDE0D0}
+    th{background:#4A2C1E;color:#F5D9B0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:10px 14px;white-space:nowrap}
+    td{padding:10px 14px;border-bottom:1px solid #F0E8DC;vertical-align:middle;color:#2C1A0E}
+    tr:last-child td{border-bottom:none}
+    tr:nth-child(even) td{background:#FDFAF7}
+    .c{text-align:center}.r{text-align:right}
+    .rank{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#4A2C1E;color:#F5D9B0;border-radius:50%;font-size:10px;font-weight:700;margin-right:6px}
+    .badge-n{background:#FFF3E0;border:1px solid #FFB74D;color:#BF6900;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:700}
+    /* CARDS DE PRODUÇÃO */
+    .cards-list{display:flex;flex-direction:column;gap:10px}
+    .card-prod{background:#fff;border-radius:12px;border:1px solid #EDE0D0;border-left:4px solid #C49A68;padding:14px 18px;page-break-inside:avoid}
+    .cp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:10px}
+    .cp-main{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:1}
+    .cp-nome{font-weight:900;font-size:15px;color:#3A1F10;line-height:1.2}
+    .badge-lotes{background:#F5EFE4;border:1px solid #D4C0A0;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;color:#7A5030;white-space:nowrap}
+    .cp-obs{font-size:11px;color:#A09080;font-style:italic}
+    .cp-right{text-align:right;flex-shrink:0}
+    .cp-data{font-size:11px;color:#A09080;font-weight:700;white-space:nowrap}
+    .cp-custo{font-size:16px;font-weight:900;color:#BF6900;margin-top:3px;white-space:nowrap}
+    .cp-ings{display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px;background:#FDFAF6;border-radius:8px;min-height:32px;align-items:center}
+    .pill{display:inline-block;background:#F5EFE4;border:1px solid #DDD0B8;border-radius:20px;padding:3px 9px;font-size:10px;color:#6B3D1E;white-space:nowrap;font-weight:600}
+    .cp-prod{margin-top:8px;display:flex;justify-content:flex-end}
+    .tag-prod{display:inline-flex;align-items:center;gap:5px;background:#E8F5E9;border:1px solid #A5D6A7;border-radius:20px;padding:4px 12px;font-size:11px;color:#2E7D32}
+    /* TOTAL BAR */
+    .total-bar{background:linear-gradient(90deg,#3A1F10,#5C3520);color:#fff;border-radius:10px;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+    .total-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#C49A68}
+    .total-val{font-size:22px;font-weight:900;color:#F5D9B0;font-family:'Playfair Display',serif}
     /* RODAPÉ */
-    .footer{margin-top:28px;padding-top:12px;border-top:1px solid #EDE8E0;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#B0A090}
-    .btn-print{display:inline-flex;align-items:center;gap:6px;padding:9px 22px;background:#4A2C1E;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:20px}
-    @media print{.btn-print,.no-print{display:none}body{padding:16px}thead{display:table-header-group}}
+    .footer{margin-top:32px;padding:16px 36px;background:#3A1F10;display:flex;justify-content:space-between;align-items:center}
+    .footer-left{font-size:11px;color:#C49A68;font-weight:700}
+    .footer-right{font-size:11px;color:#A09080}
+    /* PRINT */
+    .btn-print{display:inline-flex;align-items:center;gap:8px;padding:10px 28px;background:#4A2C1E;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin:20px 36px}
+    @media print{
+      .btn-print,.no-print{display:none!important}
+      body{background:#fff}
+      .banner{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .card-prod,.stat,.total-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .footer{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    }
   </style>
   </head><body>
-  <!-- CABEÇALHO -->
-  <div class="cab">
-    <div class="cab-left">
-      ${logoSrc?`<img src="${logoSrc}" class="cab-logo" onerror="this.style.display='none'">`:''}
+  <div class="banner">
+    <div class="ban-left">
+      ${logoSrc?`<img src="${logoSrc}" class="ban-logo" onerror="this.style.display='none'">`:''}
       <div>
-        <div class="cab-nome">${nomeEmp}</div>
-        <div class="cab-sub">Gestão de Confeitaria</div>
+        <div class="ban-empresa">${nomeEmp}</div>
+        <div class="ban-sub">Gestão de Confeitaria</div>
       </div>
     </div>
-    <div class="cab-right">
-      <div class="cab-titulo">Relatório de Produção</div>
-      <div class="cab-data">Gerado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    <div class="ban-right">
+      <div class="ban-titulo">Relatório de Produção</div>
+      <div class="ban-data">Gerado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
     </div>
   </div>
-  <!-- CARDS -->
-  <div class="cards">
-    <div class="card choc">
-      <div class="card-val">${hist.length}</div>
-      <div class="card-lbl">Total Produções</div>
+  <div class="body">
+    <div class="stats">
+      <div class="stat choc">
+        <div class="stat-icon">🏭</div>
+        <div class="stat-body"><div class="stat-val">${hist.length}</div><div class="stat-lbl">Produções</div></div>
+      </div>
+      <div class="stat amber">
+        <div class="stat-icon">💰</div>
+        <div class="stat-body"><div class="stat-val">R$${total.toFixed(2).replace('.',',')}</div><div class="stat-lbl">Custo Total</div></div>
+      </div>
+      <div class="stat green">
+        <div class="stat-icon">📅</div>
+        <div class="stat-body"><div class="stat-val">R$${totalMes.toFixed(2).replace('.',',')}</div><div class="stat-lbl">Este Mês</div></div>
+      </div>
+      <div class="stat rose">
+        <div class="stat-icon">🎂</div>
+        <div class="stat-body"><div class="stat-val">${Object.keys(por).length}</div><div class="stat-lbl">Receitas</div></div>
+      </div>
     </div>
-    <div class="card rose">
-      <div class="card-val">R$${total.toFixed(2).replace('.',',')}</div>
-      <div class="card-lbl">Custo Total</div>
+    <div class="sec">
+      <div class="sec-hdr">
+        <span class="sec-titulo">Resumo por Receita</span>
+        <span class="sec-count">${resumoEntries.length} receita${resumoEntries.length!==1?'s':''}</span>
+      </div>
+      <table>
+        <thead><tr><th>Receita</th><th class="c">Produções</th><th class="c">Lotes</th><th class="r">Custo Total</th></tr></thead>
+        <tbody>${resumoRows}</tbody>
+      </table>
     </div>
-    <div class="card rose">
-      <div class="card-val">R$${totalMes.toFixed(2).replace('.',',')}</div>
-      <div class="card-lbl">Custo Este Mês</div>
-    </div>
-    <div class="card green">
-      <div class="card-val">${Object.keys(por).length}</div>
-      <div class="card-lbl">Receitas Diferentes</div>
+    <div class="sec">
+      <div class="sec-hdr">
+        <span class="sec-titulo">Histórico Detalhado</span>
+        <span class="sec-count">${hist.length} registro${hist.length!==1?'s':''}</span>
+      </div>
+      <div class="cards-list">${detCards}</div>
+      <div class="total-bar" style="margin-top:14px">
+        <span class="total-label">Custo Total de Produção</span>
+        <span class="total-val">R$${total.toFixed(2).replace('.',',')}</span>
+      </div>
     </div>
   </div>
-  <!-- RESUMO POR RECEITA -->
-  <div class="sec">
-    <div class="sec-hdr">Resumo por Receita</div>
-    <table>
-      <thead><tr><th>Receita</th><th class="c">Produções</th><th class="c">Total Lotes</th><th class="r">Custo Total</th></tr></thead>
-      <tbody>${resumoRows}</tbody>
-    </table>
-  </div>
-  <!-- HISTÓRICO DETALHADO -->
-  <div class="sec">
-    <div class="sec-hdr">Histórico Detalhado</div>
-    <table>
-      <thead><tr><th>Data</th><th>Receita</th><th class="c">Lotes</th><th>Ingredientes Usados</th><th class="r">Custo</th><th>Produto</th></tr></thead>
-      <tbody>${detRows}</tbody>
-      <tfoot><tr class="total-row"><td colspan="4" class="r">Total geral</td><td class="r custo">R$${total.toFixed(2).replace('.',',')}</td><td></td></tr></tfoot>
-    </table>
-  </div>
-  <!-- RODAPÉ -->
   <div class="footer">
-    <span>${nomeEmp} · DoceSistema — Gestão de Confeitaria</span>
-    <span>Impresso em ${new Date().toLocaleDateString('pt-BR')}</span>
+    <span class="footer-left">${nomeEmp} · DoceSistema</span>
+    <span class="footer-right">Impresso em ${new Date().toLocaleDateString('pt-BR')}</span>
   </div>
-  <button class="btn-print no-print" onclick="window.print()">🖨&nbsp; Imprimir / Salvar PDF</button>
+  <div class="no-print">
+    <button class="btn-print" onclick="window.print()">🖨&nbsp; Imprimir / Salvar PDF</button>
+  </div>
   </body></html>`)
   w.document.close()
 }
