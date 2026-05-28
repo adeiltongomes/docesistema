@@ -3087,29 +3087,141 @@ function relatorioProducao(){
 }
 function imprimirProducao(){
   const hist=DB.get(S.PRODUCOES).slice().reverse()
+  if(!hist.length){toast('Nenhuma produção para imprimir','warn');return}
   const emp=DB.get(S.EMPRESA)||{}
+  const nomeEmp=emp.fantasia||emp.nome||'DoceSistema'
+  const logoSrc=document.querySelector('.slogo img')?.src||''
   const total=hist.reduce((a,x)=>a+(x.custo||0),0)
-  const linhas=hist.map(p=>{
-    const d=p.data?new Date(p.data+'T12:00').toLocaleDateString('pt-BR'):'—'
-    const ings=(p.ingredientes||[]).map(i=>`${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}`).join(', ')
-    return`<tr style="border-bottom:1px solid #eee">
-      <td style="padding:6px 8px">${d}</td>
-      <td style="padding:6px 8px;font-weight:600">${p.recNome}</td>
-      <td style="padding:6px 8px;text-align:center">${p.lotes}</td>
-      <td style="padding:6px 8px;font-size:11px;color:#666">${ings}</td>
-      <td style="padding:6px 8px;text-align:right;font-weight:700">${p.custo>0?'R$'+p.custo.toFixed(2).replace('.',','):'—'}</td>
+  const mes=today().slice(0,7)
+  const totalMes=hist.filter(x=>(x.data||'').startsWith(mes)).reduce((a,x)=>a+(x.custo||0),0)
+  // agrupa por receita para resumo
+  const por={}
+  hist.forEach(p=>{if(!por[p.recNome])por[p.recNome]={n:0,lotes:0,custo:0};por[p.recNome].n++;por[p.recNome].lotes+=p.lotes||1;por[p.recNome].custo+=p.custo||0})
+  const resumoRows=Object.entries(por).sort((a,b)=>b[1].n-a[1].n).map(([nome,v])=>`
+    <tr>
+      <td>${nome}</td>
+      <td class="c">${v.n}×</td>
+      <td class="c">${v.lotes} lote${v.lotes!==1?'s':''}</td>
+      <td class="r">${v.custo>0?'R$'+v.custo.toFixed(2).replace('.',','):'—'}</td>
+    </tr>`).join('')
+  const detRows=hist.map((p,idx)=>{
+    const d=p.data?new Date(p.data+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'
+    const ings=(p.ingredientes||[]).map(i=>`${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}`).join(' · ')
+    const prod=p.produzido?`<div class="tag-prod">+${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(1)} ${p.produzido.un} ${p.produzido.nome}</div>`:''
+    return`<tr class="${idx%2===1?'alt':''}">
+      <td class="nowrap">${d}</td>
+      <td><strong>${p.recNome}</strong>${p.obs?`<div class="obs">${p.obs}</div>`:''}</td>
+      <td class="c">${p.lotes}</td>
+      <td class="ings">${ings}</td>
+      <td class="r custo">${p.custo>0?'R$'+p.custo.toFixed(2).replace('.',','):'—'}</td>
+      <td>${prod}</td>
     </tr>`}).join('')
-  const w=window.open('','_blank','width=800,height=600')
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Produção</title>
-  <style>body{font-family:Arial,sans-serif;padding:24px;color:#333}h1{font-size:20px;margin:0 0 4px}p{font-size:12px;color:#666;margin:0 0 20px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f5f0ea;padding:7px 8px;text-align:left;border-bottom:2px solid #d4a574;font-size:11px;text-transform:uppercase;letter-spacing:.5px}.total{background:#f5f0ea;font-weight:700}@media print{button{display:none}}</style>
+  const w=window.open('','_blank','width=900,height=700')
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Relatório de Produção — ${nomeEmp}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Lato',Arial,sans-serif;background:#fff;color:#2C1A0E;padding:32px;font-size:13px}
+    /* CABEÇALHO */
+    .cab{display:flex;align-items:center;justify-content:space-between;padding-bottom:18px;margin-bottom:24px;border-bottom:3px solid #4A2C1E}
+    .cab-left{display:flex;align-items:center;gap:14px}
+    .cab-logo{max-height:64px;max-width:130px;object-fit:contain}
+    .cab-nome{font-size:20px;font-weight:900;color:#4A2C1E;line-height:1.1}
+    .cab-sub{font-size:11px;color:#A07050;margin-top:3px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+    .cab-right{text-align:right}
+    .cab-titulo{font-size:22px;font-weight:900;color:#4A2C1E;letter-spacing:.3px}
+    .cab-data{font-size:11px;color:#A07050;margin-top:4px}
+    /* CARDS DE RESUMO */
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+    .card{border-radius:10px;padding:14px 16px;text-align:center}
+    .card.choc{background:#4A2C1E;color:#fff}
+    .card.rose{background:#F9EBE0;border:1.5px solid #E8C4A0}
+    .card.green{background:#EEF7EE;border:1.5px solid #A8D5A8}
+    .card-val{font-size:24px;font-weight:900;line-height:1.1;margin-bottom:3px}
+    .card.choc .card-val{color:#F5D9B0}
+    .card.rose .card-val{color:#B8600A}
+    .card.green .card-val{color:#2E7D32}
+    .card-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.75}
+    /* SEÇÃO */
+    .sec{margin-bottom:24px}
+    .sec-hdr{background:#4A2C1E;color:#fff;padding:7px 14px;border-radius:6px 6px 0 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px}
+    /* TABELAS */
+    table{width:100%;border-collapse:collapse}
+    th{background:#F5EFE4;color:#6B3D1E;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:8px 12px;border-bottom:2px solid #D4A574;white-space:nowrap}
+    td{padding:9px 12px;border-bottom:1px solid #F0EAE0;vertical-align:top;color:#2C1A0E}
+    tr.alt td{background:#FDFAF6}
+    .c{text-align:center}.r{text-align:right}.nowrap{white-space:nowrap}
+    .custo{font-weight:700;color:#B8600A}
+    .ings{font-size:11px;color:#7A5540;line-height:1.7}
+    .obs{font-size:11px;color:#A07050;font-style:italic;margin-top:2px}
+    .tag-prod{display:inline-block;background:#EEF7EE;border:1px solid #A8D5A8;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;color:#2E7D32;white-space:nowrap}
+    .total-row td{background:#F5EFE4;font-weight:700;font-size:13px;border-top:2px solid #D4A574;border-bottom:none;color:#4A2C1E}
+    .total-row .custo{font-size:15px;color:#B8600A}
+    /* RESUMO */
+    .res-row td{padding:7px 12px;border-bottom:1px solid #F0EAE0}
+    /* RODAPÉ */
+    .footer{margin-top:28px;padding-top:12px;border-top:1px solid #EDE8E0;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#B0A090}
+    .btn-print{display:inline-flex;align-items:center;gap:6px;padding:9px 22px;background:#4A2C1E;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:20px}
+    @media print{.btn-print,.no-print{display:none}body{padding:16px}thead{display:table-header-group}}
+  </style>
   </head><body>
-  <h1>${emp.nome||'DoceSistema'} — Relatório de Produção</h1>
-  <p>Gerado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</p>
-  <table><thead><tr><th>Data</th><th>Receita</th><th style="text-align:center">Lotes</th><th>Ingredientes</th><th style="text-align:right">Custo</th></tr></thead>
-  <tbody>${linhas}</tbody>
-  <tfoot><tr class="total"><td colspan="4" style="padding:8px;text-align:right">Total geral</td><td style="padding:8px;text-align:right">R$${total.toFixed(2).replace('.',',')}</td></tr></tfoot>
-  </table>
-  <br><button onclick="window.print()">Imprimir</button>
+  <!-- CABEÇALHO -->
+  <div class="cab">
+    <div class="cab-left">
+      ${logoSrc?`<img src="${logoSrc}" class="cab-logo" onerror="this.style.display='none'">`:''}
+      <div>
+        <div class="cab-nome">${nomeEmp}</div>
+        <div class="cab-sub">Gestão de Confeitaria</div>
+      </div>
+    </div>
+    <div class="cab-right">
+      <div class="cab-titulo">Relatório de Produção</div>
+      <div class="cab-data">Gerado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    </div>
+  </div>
+  <!-- CARDS -->
+  <div class="cards">
+    <div class="card choc">
+      <div class="card-val">${hist.length}</div>
+      <div class="card-lbl">Total Produções</div>
+    </div>
+    <div class="card rose">
+      <div class="card-val">R$${total.toFixed(2).replace('.',',')}</div>
+      <div class="card-lbl">Custo Total</div>
+    </div>
+    <div class="card rose">
+      <div class="card-val">R$${totalMes.toFixed(2).replace('.',',')}</div>
+      <div class="card-lbl">Custo Este Mês</div>
+    </div>
+    <div class="card green">
+      <div class="card-val">${Object.keys(por).length}</div>
+      <div class="card-lbl">Receitas Diferentes</div>
+    </div>
+  </div>
+  <!-- RESUMO POR RECEITA -->
+  <div class="sec">
+    <div class="sec-hdr">Resumo por Receita</div>
+    <table>
+      <thead><tr><th>Receita</th><th class="c">Produções</th><th class="c">Total Lotes</th><th class="r">Custo Total</th></tr></thead>
+      <tbody>${resumoRows}</tbody>
+    </table>
+  </div>
+  <!-- HISTÓRICO DETALHADO -->
+  <div class="sec">
+    <div class="sec-hdr">Histórico Detalhado</div>
+    <table>
+      <thead><tr><th>Data</th><th>Receita</th><th class="c">Lotes</th><th>Ingredientes Usados</th><th class="r">Custo</th><th>Produto</th></tr></thead>
+      <tbody>${detRows}</tbody>
+      <tfoot><tr class="total-row"><td colspan="4" class="r">Total geral</td><td class="r custo">R$${total.toFixed(2).replace('.',',')}</td><td></td></tr></tfoot>
+    </table>
+  </div>
+  <!-- RODAPÉ -->
+  <div class="footer">
+    <span>${nomeEmp} · DoceSistema — Gestão de Confeitaria</span>
+    <span>Impresso em ${new Date().toLocaleDateString('pt-BR')}</span>
+  </div>
+  <button class="btn-print no-print" onclick="window.print()">🖨&nbsp; Imprimir / Salvar PDF</button>
   </body></html>`)
   w.document.close()
 }
