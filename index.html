@@ -2150,7 +2150,19 @@ function atualizarCustoIngred(i){
       el.style.color=custo!=null?'var(--cara)':'var(--txt3)'
     }
   }
-  atualizarTotalCustoReceita()
+  _atualizarSpansCusto()
+}
+function _atualizarSpansCusto(){
+  const{total,parcial,semCusto,porcoes,porLabel,custoPor}=_calcCustoBase()
+  const elTotal=document.getElementById('recTotalVal')
+  const elAviso=document.getElementById('recTotalAviso')
+  const elPor=document.getElementById('recCustoPorcao')
+  if(!elTotal)return
+  if(total===0){document.getElementById('recCustoTotal').innerHTML='';return}
+  elTotal.textContent=fmt(total)
+  if(elAviso)elAviso.textContent=parcial?`(parcial — ${semCusto} sem custo)`:''
+  if(elPor){elPor.textContent=porcoes>1?fmt(custoPor):'';const row=document.getElementById('recCustoPorcaoRow');if(row)row.style.display=porcoes>1?'flex':'none'}
+  atualizarMarkupResult()
 }
 function _calcCustoBase(){
   const prods=DB.get(S.PRODUTOS)
@@ -2175,13 +2187,13 @@ function atualizarTotalCustoReceita(){
   const stlInp='padding:5px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt);background:var(--ivory);width:70px;text-align:right'
   el.innerHTML=`<div style="background:var(--cream);border-radius:8px;border:1.5px solid var(--cream2);overflow:hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px">
-      <span style="font-size:12px;font-weight:600;color:var(--txt2)">Custo total${parcial?` <span style="color:var(--warn);font-size:11px">(parcial — ${semCusto} sem custo)</span>`:''}</span>
-      <span style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(total)}</span>
+      <span style="font-size:12px;font-weight:600;color:var(--txt2)">Custo total <span id="recTotalAviso" style="color:var(--warn);font-size:11px">${parcial?`(parcial — ${semCusto} sem custo)`:''}</span></span>
+      <span id="recTotalVal" style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(total)}</span>
     </div>
-    ${porcoes>1?`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid var(--cream2)">
+    <div id="recCustoPorcaoRow" style="display:${porcoes>1?'flex':'none'};justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid var(--cream2)">
       <span style="font-size:12px;color:var(--txt3)">Custo por ${porLabel} (÷ ${porcoes})</span>
-      <span style="font-size:14px;font-weight:700;color:var(--cara2)">${fmt(custoPor)}</span>
-    </div>`:''}
+      <span id="recCustoPorcao" style="font-size:14px;font-weight:700;color:var(--cara2)">${porcoes>1?fmt(custoPor):''}</span>
+    </div>
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--cream2);background:var(--ivory)">
       <span style="font-size:12px;color:var(--txt2);font-weight:600;flex:1">Markup %</span>
       <input id="recMarkup" type="number" min="0" step="1" placeholder="ex: 200" oninput="atualizarMarkupResult()" style="${stlInp}">
