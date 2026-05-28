@@ -1004,6 +1004,7 @@ function statusOrc(id,status){
        </div>`,
       `<button class="btn btn-s" onclick="closeModal();render('orcamentos')">Agora não</button>
        <button class="btn btn-s" style="background:var(--choc2);color:#fff;border-color:var(--choc2)" onclick="closeModal();gerarOS('${id}')">🗒 Gerar OS</button>
+       <button class="btn btn-s" style="background:#5A8FD0;color:#fff;border-color:#5A8FD0" onclick="closeModal();navigate('producao')">🏭 Ir para Produção</button>
        <button class="btn btn-p" style="background:var(--ok)" onclick="closeModal();gerarVendaDeOrc('${id}')">💰 Gerar Venda</button>`)
   }else if(status==='recusado'){
     toast('Orçamento marcado como recusado','warn')
@@ -2940,12 +2941,53 @@ function confirmarProducao(id){
 }
 
 // ===== PRODUÇÃO =====
+function marcarOrcProduzido(id){
+  confirmarModal('Marcar este orçamento como produzido?<br><small style="color:var(--txt3)">Ele sairá da fila de produção.</small>',()=>{
+    const orcs=DB.get(S.ORCAMENTOS);const i=orcs.findIndex(o=>o.id===id);if(i<0)return
+    orcs[i].produzidoEm=today();DB.set(S.ORCAMENTOS,orcs)
+    toast('Orçamento marcado como produzido!','ok');render('producao')
+  })
+}
 function producaoHTML(){
   const hist=DB.get(S.PRODUCOES).slice().reverse()
   const total=hist.reduce((a,x)=>a+(x.custo||0),0)
   const mes=thisMonth()
   const totalMes=hist.filter(x=>x.data&&x.data.startsWith(mes)).reduce((a,x)=>a+(x.custo||0),0)
   const hoje=hist.filter(x=>x.data===today()).length
+  // orçamentos aprovados ainda não marcados como produzidos
+  const orcsFilaRaw=DB.get(S.ORCAMENTOS).filter(o=>o.status==='aprovado'&&!o.produzidoEm)
+  const orcsFilaSort=orcsFilaRaw.slice().sort((a,b)=>(a.validade||'9999')>(b.validade||'9999')?1:-1)
+  const filaHTML=orcsFilaSort.length?`
+  <div style="margin-bottom:22px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="font-size:14px;font-weight:800;color:var(--choc)">📋 Fila de Produção — Pedidos Aprovados</span>
+      <span style="background:var(--cara);color:#fff;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700">${orcsFilaSort.length}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+    ${orcsFilaSort.map(o=>{
+      const cli=clienteNome(o.cliId)
+      const itensStr=(o.itens||[]).map(it=>`${it.qtd>1?it.qtd+'× ':''}${it.nome}`).join(' · ')
+      const vencendo=o.validade&&o.validade<today()
+      const prazoCor=vencendo?'var(--bad)':o.validade&&o.validade===today()?'var(--warn)':'var(--txt3)'
+      return`<div style="background:var(--white);border:1.5px solid ${vencendo?'var(--bad)':'#F0C878'};border-left:4px solid ${vencendo?'var(--bad)':'var(--cara)'};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;box-shadow:0 1px 6px rgba(74,44,30,.06)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:800;color:var(--choc);margin-bottom:5px">${cli?cli:'Cliente não informado'}</div>
+          <div style="font-size:12px;color:var(--txt2);margin-bottom:6px;line-height:1.5">${itensStr||'—'}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            <span style="background:#FDF3E7;border:1px solid #F0C878;border-radius:20px;padding:2px 10px;font-size:11px;color:#9A5500;font-weight:600">Aprovado</span>
+            ${o.validade?`<span style="font-size:11px;color:${prazoCor};font-weight:600">${vencendo?'⚠ Prazo vencido: ':'📅 Prazo: '}${new Date(o.validade+'T12:00').toLocaleDateString('pt-BR')}</span>`:''}
+            ${o.total?`<span style="font-size:11px;color:var(--txt3)">${fmt(o.totalF||o.total)}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end">
+          <button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok);white-space:nowrap" onclick="marcarOrcProduzido('${o.id}')">✓ Produzido</button>
+          <button class="btn btn-s btn-sm" style="white-space:nowrap" onclick="closeModal();gerarVendaDeOrc('${o.id}')">💰 Gerar Venda</button>
+          <button class="btn btn-s btn-sm" style="white-space:nowrap" onclick="navigate('orcamentos')">Ver Orçamento</button>
+        </div>
+      </div>`
+    }).join('')}
+    </div>
+  </div>`:''
   return`
   <div class="ph">
     <div><h2>Produção</h2><p>Histórico de receitas produzidas</p></div>
@@ -2955,6 +2997,7 @@ function producaoHTML(){
       <button class="btn btn-p" onclick="navigate('receitas')">+ Nova Produção</button>
     </div>
   </div>
+  ${filaHTML}
   ${hist.length?`
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px">
     <div style="background:linear-gradient(135deg,var(--choc),#7A4A28);border-radius:12px;padding:14px 16px;color:#fff">
