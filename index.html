@@ -2975,28 +2975,37 @@ function producaoHTML(){
       const ingAll=p.ingredientes||[]
       const ingPreview=ingAll.slice(0,4).map(i=>`<span style="display:inline-block;background:var(--cream);border:1px solid var(--cream2);border-radius:4px;padding:1px 7px;font-size:11px;color:var(--txt2);margin:2px 2px 0 0">${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}</span>`).join('')
       const maisIng=ingAll.length>4?`<span style="font-size:11px;color:var(--txt3);margin-left:2px">+${ingAll.length-4} mais</span>`:''
-      return`<div style="background:var(--white);border:1.5px solid var(--cream2);border-radius:10px;padding:14px 16px">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
-          <div>
-            <div style="font-size:15px;font-weight:800;color:var(--choc)">${p.recNome}</div>
-            <div style="font-size:12px;color:var(--txt3);margin-top:2px">${d} · ${p.lotes} lote${p.lotes!==1?'s':''}${p.obs?` · <em>${p.obs}</em>`:''}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
-            ${p.custo>0?`<div style="text-align:right"><div style="font-size:11px;color:var(--txt3)">Custo</div><div style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(p.custo)}</div></div>`:''}
-            ${p.produzido?`<div style="background:#EFF9F0;border:1.5px solid var(--ok);border-radius:7px;padding:5px 10px;text-align:center">
-              <div style="font-size:10px;color:var(--ok);font-weight:700">+ ESTOQUE</div>
-              <div style="font-size:12px;font-weight:700;color:var(--ok)">${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(2)} ${p.produzido.un}</div>
-              <div style="font-size:10px;color:var(--txt3)">${p.produzido.nome}</div>
-            </div>`:''}
-            <div style="display:flex;gap:4px">
-              <button class="btn-ic" onclick="editarProducao('${p.id}')" title="Editar registro"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button class="btn-ic btn-d" onclick="excluirProducao('${p.id}')" title="Remover do histórico"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      return`<div style="background:var(--white);border:1px solid var(--cream2);border-radius:12px;overflow:hidden;display:flex;box-shadow:0 2px 8px rgba(74,44,30,.07)">
+        <div style="width:5px;background:linear-gradient(180deg,var(--cara),var(--choc));flex-shrink:0"></div>
+        <div style="flex:1;padding:14px 16px;min-width:0">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15px;font-weight:800;color:var(--choc);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.recNome}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+                <span style="background:var(--cream);border:1px solid var(--cream2);border-radius:20px;padding:2px 10px;font-size:11px;color:var(--txt2);font-weight:600">${d}</span>
+                <span style="background:#FDF3E7;border:1px solid #F0C878;border-radius:20px;padding:2px 10px;font-size:11px;color:#9A5500;font-weight:700">${p.lotes} lote${p.lotes!==1?'s':''}</span>
+                ${p.obs?`<span style="font-size:11px;color:var(--txt3);font-style:italic">${p.obs}</span>`:''}
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;flex-shrink:0">
+              ${p.custo>0?`<div style="background:linear-gradient(135deg,#FFF8EE,#FFF0D4);border:1.5px solid #F0C878;border-radius:10px;padding:7px 13px;text-align:right">
+                <div style="font-size:10px;color:#B07030;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Custo</div>
+                <div style="font-size:17px;font-weight:900;color:#9A5500;line-height:1.1;white-space:nowrap">${fmt(p.custo)}</div>
+              </div>`:''}
+              ${p.produzido?`<div style="background:#EFF9F0;border:1.5px solid var(--ok);border-radius:10px;padding:6px 10px;text-align:center">
+                <div style="font-size:9px;color:var(--ok);font-weight:700;letter-spacing:.5px">+ ESTOQUE</div>
+                <div style="font-size:13px;font-weight:800;color:var(--ok);white-space:nowrap">${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(1)} ${p.produzido.un}</div>
+                <div style="font-size:10px;color:var(--txt3);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.produzido.nome}</div>
+              </div>`:''}
+              <div style="display:flex;flex-direction:column;gap:3px;padding-top:2px">
+                <button class="btn-ic" onclick="editarProducao('${p.id}')" title="Editar registro"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button class="btn-ic btn-d" onclick="excluirProducao('${p.id}')" title="Remover do histórico"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              </div>
             </div>
           </div>
-        </div>
-        <div style="border-top:1px solid var(--cream2);padding-top:8px">
-          <div style="font-size:11px;color:var(--txt3);font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px">Ingredientes usados</div>
-          <div>${ingPreview}${maisIng}</div>
+          <div style="margin-top:10px;background:var(--cream);border-radius:8px;padding:7px 10px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:30px">
+            ${ingPreview}${maisIng}
+          </div>
         </div>
       </div>`
     }).join('')}
