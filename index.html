@@ -2952,12 +2952,12 @@ function confirmarProducao(id){
 }
 
 // ===== PRODUÇÃO =====
-function marcarOrcProduzido(id){
-  confirmarModal('Marcar este orçamento como produzido?<br><small style="color:var(--txt3)">Ele sairá da fila de produção.</small>',()=>{
-    const orcs=DB.get(S.ORCAMENTOS);const i=orcs.findIndex(o=>o.id===id);if(i<0)return
-    orcs[i].produzidoEm=today();DB.set(S.ORCAMENTOS,orcs)
-    toast('Orçamento marcado como produzido!','ok');render('producao')
-  })
+function alterarStatusProdOrc(id,novoStatus){
+  const orcs=DB.get(S.ORCAMENTOS);const i=orcs.findIndex(o=>o.id===id);if(i<0)return
+  orcs[i].statusProd=novoStatus
+  if(novoStatus==='produzido')orcs[i].produzidoEm=today()
+  else delete orcs[i].produzidoEm
+  DB.set(S.ORCAMENTOS,orcs);render('producao')
 }
 function producaoHTML(){
   const hist=DB.get(S.PRODUCOES).slice().reverse()
@@ -2966,34 +2966,55 @@ function producaoHTML(){
   const totalMes=hist.filter(x=>x.data&&x.data.startsWith(mes)).reduce((a,x)=>a+(x.custo||0),0)
   const hoje=hist.filter(x=>x.data===today()).length
   // orçamentos aprovados ainda não marcados como produzidos
-  const orcsFilaRaw=DB.get(S.ORCAMENTOS).filter(o=>o.status==='aprovado'&&!o.produzidoEm)
-  const orcsFilaSort=orcsFilaRaw.slice().sort((a,b)=>(a.validade||'9999')>(b.validade||'9999')?1:-1)
+  const statusProdCfg={
+    aberto:    {label:'Aberto',    cor:'#5A8FD0',bg:'#EEF3FF',borda:'#B8C8F0',icone:'🔵'},
+    produzindo:{label:'Produzindo',cor:'#B07030',bg:'#FFF3DC',borda:'#F0C878',icone:'🟡'},
+    produzido: {label:'Produzido', cor:'#2E7D32',bg:'#EFF9F0',borda:'#A5D6A7',icone:'🟢'},
+    cancelado: {label:'Cancelado', cor:'#B71C1C',bg:'#FFF0F0',borda:'#FFAAAA',icone:'🔴'},
+  }
+  const orcsFilaRaw=DB.get(S.ORCAMENTOS).filter(o=>o.status==='aprovado')
+  const orcsFilaSort=orcsFilaRaw.slice().sort((a,b)=>{
+    const order={aberto:0,produzindo:1,produzido:2,cancelado:3}
+    const sa=order[a.statusProd||'aberto']??0,sb=order[b.statusProd||'aberto']??0
+    if(sa!==sb)return sa-sb
+    return(a.validade||'9999')>(b.validade||'9999')?1:-1
+  })
   const filaHTML=orcsFilaSort.length?`
-  <div style="margin-bottom:22px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <span style="font-size:14px;font-weight:800;color:var(--choc)">📋 Fila de Produção — Pedidos Aprovados</span>
+  <div style="margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span style="font-size:14px;font-weight:800;color:var(--choc)">📋 Pedidos para Produzir</span>
       <span style="background:var(--cara);color:#fff;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700">${orcsFilaSort.length}</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
     ${orcsFilaSort.map(o=>{
+      const sp=o.statusProd||'aberto'
+      const cfg=statusProdCfg[sp]||statusProdCfg.aberto
       const cli=clienteNome(o.cliId)
       const itensStr=(o.itens||[]).map(it=>`${it.qtd>1?it.qtd+'× ':''}${it.nome}`).join(' · ')
-      const vencendo=o.validade&&o.validade<today()
-      const prazoCor=vencendo?'var(--bad)':o.validade&&o.validade===today()?'var(--warn)':'var(--txt3)'
-      return`<div style="background:var(--white);border:1.5px solid ${vencendo?'var(--bad)':'#F0C878'};border-left:4px solid ${vencendo?'var(--bad)':'var(--cara)'};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;box-shadow:0 1px 6px rgba(74,44,30,.06)">
+      const vencendo=o.validade&&o.validade<today()&&sp!=='produzido'&&sp!=='cancelado'
+      const isDimmed=sp==='produzido'||sp==='cancelado'
+      return`<div style="background:${isDimmed?'#FAFAFA':cfg.bg};border:1.5px solid ${vencendo?'var(--bad)':cfg.borda};border-left:4px solid ${vencendo?'var(--bad)':cfg.cor};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;box-shadow:0 1px 6px rgba(74,44,30,.05);opacity:${isDimmed?'.72':'1'}">
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:800;color:var(--choc);margin-bottom:5px">${cli?cli:'Cliente não informado'}</div>
-          <div style="font-size:12px;color:var(--txt2);margin-bottom:6px;line-height:1.5">${itensStr||'—'}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-size:14px;font-weight:800;color:var(--choc)">${cli||'Cliente não informado'}</span>
+            <span style="font-size:11px;font-weight:700;color:${cfg.cor};background:${cfg.bg};border:1px solid ${cfg.borda};border-radius:20px;padding:2px 9px">${cfg.icone} ${cfg.label}</span>
+          </div>
+          <div style="font-size:12px;color:var(--txt2);margin-bottom:8px;line-height:1.5">${itensStr||'—'}</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-            <span style="background:#FDF3E7;border:1px solid #F0C878;border-radius:20px;padding:2px 10px;font-size:11px;color:#9A5500;font-weight:600">Aprovado</span>
-            ${o.validade?`<span style="font-size:11px;color:${prazoCor};font-weight:600">${vencendo?'⚠ Prazo vencido: ':'📅 Prazo: '}${new Date(o.validade+'T12:00').toLocaleDateString('pt-BR')}</span>`:''}
-            ${o.total?`<span style="font-size:11px;color:var(--txt3)">${fmt(o.totalF||o.total)}</span>`:''}
+            ${o.validade?`<span style="font-size:11px;color:${vencendo?'var(--bad)':o.validade===today()?'var(--warn)':'var(--txt3)'};font-weight:600">${vencendo?'⚠ Prazo vencido: ':o.validade===today()?'⚠ Prazo hoje: ':'📅 '}${new Date(o.validade+'T12:00').toLocaleDateString('pt-BR')}</span>`:''}
+            ${o.totalF||o.total?`<span style="font-size:11px;color:var(--txt3);font-weight:600">${fmt(o.totalF||o.total)}</span>`:''}
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end">
-          <button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok);white-space:nowrap" onclick="marcarOrcProduzido('${o.id}')">✓ Produzido</button>
-          <button class="btn btn-s btn-sm" style="white-space:nowrap" onclick="closeModal();gerarVendaDeOrc('${o.id}')">💰 Gerar Venda</button>
-          <button class="btn btn-s btn-sm" style="white-space:nowrap" onclick="navigate('orcamentos')">Ver Orçamento</button>
+          <select onchange="alterarStatusProdOrc('${o.id}',this.value)"
+            style="padding:6px 10px;border:1.5px solid ${cfg.borda};border-radius:8px;font-size:12px;font-weight:700;color:${cfg.cor};background:${cfg.bg};font-family:inherit;cursor:pointer;outline:none;min-width:130px">
+            <option value="aberto"     ${sp==='aberto'    ?'selected':''}>🔵 Aberto</option>
+            <option value="produzindo" ${sp==='produzindo'?'selected':''}>🟡 Produzindo</option>
+            <option value="produzido"  ${sp==='produzido' ?'selected':''}>🟢 Produzido</option>
+            <option value="cancelado"  ${sp==='cancelado' ?'selected':''}>🔴 Cancelado</option>
+          </select>
+          <button class="btn btn-s btn-sm" style="white-space:nowrap;font-size:11px" onclick="gerarVendaDeOrc('${o.id}')">💰 Gerar Venda</button>
+          <button class="btn btn-s btn-sm" style="white-space:nowrap;font-size:11px" onclick="navigate('orcamentos')">Ver Orçamento</button>
         </div>
       </div>`
     }).join('')}
