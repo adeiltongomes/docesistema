@@ -3012,13 +3012,6 @@ function getStatusRec(recId){
   return(DB.get(S.RECSTATUS)||[]).find(x=>x.recId===recId&&x.data===hoje)||null
 }
 function alterarStatusReceita(recId,novoStatus){
-  if(novoStatus==='produzido'){
-    // limpa eventual marcação anterior e abre modal de confirmação
-    const all=(DB.get(S.RECSTATUS)||[]).filter(x=>!(x.recId===recId&&x.data===today()))
-    DB.set(S.RECSTATUS,all)
-    produzirReceita(recId)
-    return
-  }
   const all=(DB.get(S.RECSTATUS)||[]).filter(x=>!(x.recId===recId&&x.data===today()))
   if(novoStatus!=='aberto')all.push({recId,data:today(),status:novoStatus})
   DB.set(S.RECSTATUS,all)
@@ -3121,15 +3114,17 @@ function producaoHTML(){
             ${r.ingredientes?.length?`<span style="font-size:10px;color:var(--txt3)">${r.ingredientes.length} ingredientes</span>`:''}
           </div>
         </div>
-        <div style="flex-shrink:0">
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;align-items:flex-end">
           <select onchange="alterarStatusReceita('${r.id}',this.value)"
-            style="padding:6px 10px;border:1.5px solid ${sc.b};border-radius:8px;font-size:12px;font-weight:700;color:${sc.c};background:${sc.bg};font-family:inherit;cursor:pointer;outline:none;min-width:130px"
-            ${jaConfirmado?'disabled':''}>
+            style="padding:6px 10px;border:1.5px solid ${sc.b};border-radius:8px;font-size:12px;font-weight:700;color:${sc.c};background:${sc.bg};font-family:inherit;cursor:pointer;outline:none;min-width:130px">
             <option value="aberto"     ${sp==='aberto'    ?'selected':''}>🔵 Aberto</option>
             <option value="produzindo" ${sp==='produzindo'?'selected':''}>🟡 Produzindo</option>
             <option value="produzido"  ${sp==='produzido' ?'selected':''}>🟢 Produzido</option>
             <option value="cancelado"  ${sp==='cancelado' ?'selected':''}>🔴 Cancelado</option>
           </select>
+          ${!jaConfirmado&&sp!=='cancelado'
+            ?`<button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok);white-space:nowrap;font-size:11px" onclick="produzirReceita('${r.id}')">▶ Registrar Produção</button>`
+            :jaConfirmado?`<span style="font-size:11px;color:var(--ok);font-weight:700">✓ Ingredientes descontados</span>`:''}
         </div>
       </div>
     </div>`
