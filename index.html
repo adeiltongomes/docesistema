@@ -3075,15 +3075,56 @@ function producaoHTML(){
     }).join('')}
     </div>
   </div>`:''
+  // seção de receitas disponíveis
+  const todasReceitas=DB.get(S.RECEITAS).sort((a,b)=>a.nome.localeCompare(b.nome))
+  const prodsHoje=DB.get(S.PRODUCOES).filter(p=>p.data===today())
+  const difColor={Fácil:'var(--ok)',Médio:'var(--warn)',Difícil:'var(--bad)'}
+  const difBg={Fácil:'#EFF9F0',Médio:'#FFF8EE',Difícil:'#FFF0F0'}
+  const difBorder={Fácil:'#A5D6A7',Médio:'#F0C878',Difícil:'#FFAAAA'}
+  const receitasCards=todasReceitas.map(r=>{
+    const jaProduziu=prodsHoje.some(p=>p.recId===r.id)
+    return`<div style="background:var(--white);border:1px solid var(--cream2);border-radius:12px;overflow:hidden;display:flex;box-shadow:0 1px 5px rgba(74,44,30,.06)">
+      <div style="width:4px;background:linear-gradient(180deg,var(--cara),var(--choc));flex-shrink:0"></div>
+      <div style="width:56px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:10px 6px;border-right:1px solid var(--cream2)">
+        ${r.foto?`<img src="${r.foto.data}" style="width:40px;height:40px;border-radius:8px;object-fit:cover">`
+                :`<div style="width:40px;height:40px;border-radius:8px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:20px">🎂</div>`}
+      </div>
+      <div style="flex:1;padding:10px 14px;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:900;color:var(--choc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nome}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;align-items:center">
+            ${r.cat?`<span style="background:var(--cream);border:1px solid var(--cream2);border-radius:20px;padding:1px 8px;font-size:10px;color:var(--txt2);font-weight:600">${r.cat}</span>`:''}
+            ${r.dif?`<span style="background:${difBg[r.dif]||'var(--cream)'};border:1px solid ${difBorder[r.dif]||'var(--cream2)'};border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700;color:${difColor[r.dif]||'var(--cara)'}">${r.dif}</span>`:''}
+            ${r.rendimento?`<span style="font-size:10px;color:var(--txt3)">🍰 ${r.rendimento}</span>`:''}
+            ${r.ingredientes?.length?`<span style="font-size:10px;color:var(--txt3)">${r.ingredientes.length} ingredientes</span>`:''}
+            ${jaProduziu?`<span style="background:#EFF9F0;border:1px solid #A5D6A7;border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700;color:var(--ok)">✓ Produzido hoje</span>`:''}
+          </div>
+        </div>
+        <div style="flex-shrink:0">
+          ${jaProduziu
+            ?`<button class="btn btn-s btn-sm" disabled style="background:#A0C878;color:#fff;border-color:#8DB860;cursor:default;white-space:nowrap">✓ Produzido hoje</button>`
+            :`<button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok);white-space:nowrap" onclick="this.disabled=true;this.textContent='⏳ Aguarde...';produzirReceita('${r.id}');setTimeout(()=>{this.disabled=false;this.textContent='▶ Iniciar Produção'},400)">▶ Iniciar Produção</button>`}
+        </div>
+      </div>
+    </div>`
+  }).join('')
+  const receitasHTML=todasReceitas.length?`
+  <div style="margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="font-size:14px;font-weight:800;color:var(--choc)">🎂 Receitas Disponíveis</span>
+      <span style="background:var(--choc);color:#F5D9B0;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700">${todasReceitas.length}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">${receitasCards}</div>
+  </div>`:`<div class="empty" style="margin-bottom:24px"><p>Nenhuma receita cadastrada. <button class="btn btn-s btn-sm" onclick="navigate('receitas')">Cadastrar Receita</button></p></div>`
   return`
   <div class="ph">
     <div><h2>Produção</h2><p>Histórico de receitas produzidas</p></div>
     <div class="ph-actions" style="gap:6px">
       <button class="btn btn-s btn-sm" onclick="relatorioProducao()">📊 Relatório</button>
       <button class="btn btn-s btn-sm" onclick="imprimirProducao()">🖨 Imprimir</button>
-      <button class="btn btn-p" onclick="navigate('receitas')">+ Nova Produção</button>
     </div>
   </div>
+  ${receitasHTML}
   ${filaHTML}
   ${hist.length?`
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px">
