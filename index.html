@@ -367,6 +367,38 @@ function converterUnidade(qtd,from,to){
   if(V[from]!==undefined&&V[to]!==undefined)return qtd*V[from]/V[to]
   return null
 }
+// Formata custo legível: mostra por unidade armazenada E equivalente kg/L
+function fmtCustoLeg(custo,un){
+  if(!custo||custo<=0)return'—'
+  const g=v=>{
+    let s=v>=0.01?v.toFixed(v>=1?2:4):v.toFixed(6).replace(/\.?0+$/,'')
+    return s.replace('.',',')
+  }
+  if(un==='g')return`R$${g(custo)}/g · R$${g(custo*1000)}/kg`
+  if(un==='ml')return`R$${g(custo)}/ml · R$${g(custo*1000)}/L`
+  if(un==='kg')return`R$${g(custo)}/kg · R$${g(custo/1000)}/g`
+  if(un==='L')return`R$${g(custo)}/L · R$${g(custo/1000)}/ml`
+  return`R$${g(custo)}/${un}`
+}
+// Calcula preview de conversão para compras: retorna info de qtd base e custo
+function calcCmpPreview(it,ings){
+  const qtd=parseFloat(it.qtd)||0,valor=parseFloat(it.valor)||0,und=it.und||''
+  if(!qtd||!valor||!und)return null
+  let qtdBase=qtd,unBase=und,convStr=''
+  if(it.pId&&it.pId!=='_free'&&it.pId){
+    const prod=(ings||DB.get(S.PRODUTOS)).find(p=>p.id===it.pId)
+    if(prod&&prod.un&&prod.un!==und){
+      const qb=converterUnidade(qtd,und,prod.un)
+      if(qb!=null&&qb>0){
+        qtdBase=qb;unBase=prod.un
+        const qbStr=qb%1===0?qb.toString():parseFloat(qb.toFixed(4)).toString().replace('.',',')
+        convStr=`${String(qtd).replace('.',',')} ${und} = ${qbStr} ${prod.un}  ·  `
+      }
+    }
+  }
+  const custo=valor/qtdBase
+  return{custo,unBase,qtdBase,convStr,custoLeg:fmtCustoLeg(custo,unBase)}
+}
 
 // ===== ANEXO (comprovante / nota fiscal) =====
 function _anexoInner(a){
@@ -1133,38 +1165,48 @@ function renderEstTable(){
   const el=document.getElementById('estTable');if(!el)return
   if(!rows.length){el.innerHTML=`<div class="empty"><h3>Nenhum item</h3><p>Cadastre o primeiro ${estoqueTab==='produto'?'produto':'ingrediente'}</p></div>`;return}
   const isP=estoqueTab==='produto'
-  el.innerHTML=`<table><thead><tr><th>Nome</th><th>Categoria</th><th>Estoque</th><th>Mín.</th><th>Status</th>${isP?'<th>Preço Venda</th>':''}<th>Custo / ${isP?'un':'unidade'}</th><th></th></tr></thead><tbody>
+  el.innerHTML=`<table><thead><tr><th>Nome</th><th>Categoria</th><th>Estoque Atual</th><th>Mín.</th><th>Status</th>${isP?'<th>Preço Venda</th>':''}<th>Custo por Unidade</th><th></th></tr></thead><tbody>
     ${rows.map(p=>{
       const pct=p.minimo>0?Math.min(100,Math.round((p.estoque/p.minimo)*100)):100
       const low=p.estoque<=p.minimo
       const temCusto=p.custo>0
+      const custoLeg=temCusto?fmtCustoLeg(p.custo,p.un):'—'
       return`<tr>
-        <td><strong>${p.nome}</strong></td><td style="color:var(--txt3)">${p.cat||'-'}</td>
-        <td><strong>${p.estoque} ${p.un}</strong></td><td>${p.minimo} ${p.un}</td>
+        <td><strong>${p.nome}</strong></td>
+        <td style="color:var(--txt3)">${p.cat||'-'}</td>
         <td>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div class="pbar-wrap" style="width:60px"><div class="pbar-fill ${low?'low':''}" style="width:${pct}%"></div></div>
+          <div style="font-weight:700;font-size:14px;color:var(--choc)">${p.estoque} ${p.un}</div>
+          ${p.un==='g'&&p.estoque>=1000?`<div style="font-size:10px;color:var(--txt3)">${(p.estoque/1000).toFixed(3).replace(/\.?0+$/,'')} kg</div>`:
+            p.un==='ml'&&p.estoque>=1000?`<div style="font-size:10px;color:var(--txt3)">${(p.estoque/1000).toFixed(3).replace(/\.?0+$/,'')} L</div>`:''}
+        </td>
+        <td style="color:var(--txt3)">${p.minimo} ${p.un}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="pbar-wrap" style="width:50px"><div class="pbar-fill ${low?'low':''}" style="width:${pct}%"></div></div>
             ${low?'<span class="bdg bdg-r">Baixo</span>':'<span class="bdg bdg-g">OK</span>'}
           </div>
         </td>
         ${isP?`<td>
           <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:11px;color:var(--txt3)">R$</span>
             <input type="number" value="${p.preco||''}" min="0" step="0.01" placeholder="0,00"
-              style="width:80px;padding:4px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);background:var(--ivory)"
+              style="width:72px;padding:4px 6px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);background:var(--ivory)"
               onchange="salvarPrecoInline('${p.id}',this.value,this)"
               onkeydown="if(event.key==='Enter')this.blur()">
             <span style="font-size:11px;color:var(--txt3)">/${p.un}</span>
           </div>
         </td>`:''}
         <td>
+          ${temCusto?`<div style="font-size:12px;font-weight:700;color:var(--choc);margin-bottom:4px">${custoLeg}</div>`:''}
           <div style="display:flex;align-items:center;gap:4px">
-            <input type="number" value="${p.custo||''}" min="0" step="0.0001" placeholder="0,00"
-              style="width:80px;padding:4px 7px;border:1.5px solid ${temCusto?'var(--cream2)':'var(--warn)'};border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);background:${temCusto?'var(--ivory)':'#FFF8F0'}"
+            <span style="font-size:10px;color:var(--txt3)">Editar: R$</span>
+            <input type="number" value="${p.custo||''}" min="0" step="0.000001" placeholder="0,00"
+              style="width:72px;padding:3px 5px;border:1.5px solid ${temCusto?'var(--cream2)':'var(--warn)'};border-radius:6px;font-size:11px;font-family:inherit;outline:none;color:var(--txt);background:${temCusto?'var(--cream)':'#FFF8F0'}"
               onchange="salvarCustoInline('${p.id}',this.value,this)"
               onkeydown="if(event.key==='Enter')this.blur()">
-            <span style="font-size:11px;color:var(--txt3);white-space:nowrap">/${p.un}</span>
+            <span style="font-size:10px;color:var(--txt3)">/${p.un}</span>
           </div>
-          ${!temCusto?`<div style="font-size:10px;color:var(--warn);font-weight:600;margin-top:2px">sem custo</div>`:''}
+          ${!temCusto?`<div style="font-size:10px;color:var(--warn);font-weight:600;margin-top:2px">⚠ sem custo cadastrado</div>`:''}
         </td>
         <td style="white-space:nowrap">
           <button class="btn btn-s btn-sm" style="margin-right:4px" onclick="ajustarEstoque('${p.id}')">Ajustar</button>
@@ -1306,11 +1348,29 @@ function renderCmpTable(){
           </div>
 
           <div style="background:var(--cream);border-radius:8px;padding:8px 12px;margin-bottom:10px">
-            ${vis.map(it=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--cream2)">
-              <span style="flex:1;font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.nome||'—'}</span>
-              <span style="font-size:12px;font-weight:700;color:var(--cara);flex-shrink:0">${it.qtd||''} ${it.und||''}</span>
-              ${it.valor?`<span style="font-size:12px;color:var(--ok);flex-shrink:0;min-width:64px;text-align:right">${fmt(it.valor)}</span>`:''}
-            </div>`).join('')}
+            ${vis.map(it=>{
+              // calcular custo legível do item
+              const qtd=parseFloat(it.qtd)||0
+              const valor=parseFloat(it.valor)||0
+              const und=it.und||''
+              let custoStr=''
+              if(qtd&&valor&&und){
+                let qtdBase=qtd,unBase=und
+                if(it.pId&&it.pId!=='_free'){
+                  const prod=DB.get(S.PRODUTOS).find(p=>p.id===it.pId)
+                  if(prod&&prod.un&&prod.un!==und){const qb=converterUnidade(qtd,und,prod.un);if(qb!=null&&qb>0){qtdBase=qb;unBase=prod.un}}
+                }
+                custoStr=fmtCustoLeg(valor/qtdBase,unBase)
+              }
+              return`<div style="padding:6px 0;border-bottom:1px solid var(--cream2)">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="flex:1;font-size:12px;font-weight:700;color:var(--txt)">${it.nome||'—'}</span>
+                  <span style="font-size:12px;color:var(--cara);flex-shrink:0;font-weight:600">${qtd||''} ${und}</span>
+                  ${valor?`<span style="font-size:12px;color:var(--ok);flex-shrink:0;min-width:60px;text-align:right;font-weight:700">${fmt(valor)}</span>`:''}
+                </div>
+                ${custoStr&&custoStr!=='—'?`<div style="font-size:10px;color:var(--txt3);margin-top:2px">Custo: ${custoStr}</div>`:''}
+              </div>`
+            }).join('')}
             ${resto>0?`<div style="font-size:11px;color:var(--txt3);padding-top:5px;text-align:center"><a href="#" onclick="event.preventDefault();verCompra('${c.id}')" style="color:var(--cara);text-decoration:none;font-weight:600">+ ${resto} item${resto>1?'s':''} — ver todos</a></div>`:''}
           </div>
 
@@ -1352,9 +1412,9 @@ function novaCompra(){
       <label>Valor por Parcela</label>
       <div id="cParcVal" style="padding:9px 12px;background:var(--cream);border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-weight:700;color:var(--cara)">—</div>
     </div></div>
-    <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
-    <div class="items-tbl">
-      <div class="items-hdr" style="grid-template-columns:3fr 65px 60px 110px 110px 26px 26px"><span>Ingrediente</span><span>Qtd</span><span>Und</span><span>Valor Total Pago</span><span>Custo/Unidade</span><span></span><span></span></div>
+    <div style="margin-bottom:6px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
+    <div style="background:var(--cream);border-radius:7px;border:1px solid var(--cream2);overflow:hidden;margin-bottom:8px">
+      <div id="cItensHdr"></div>
       <div id="cItens"></div>
     </div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
@@ -1368,53 +1428,79 @@ function novaCompra(){
 function renderCItens(ings){
   const el=document.getElementById('cItens');if(!el)return
   if(!ings)ings=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo)
+  const iStl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);background:var(--white);width:100%'
   el.innerHTML=tempItems.map((it,i)=>{
-    const custoStr=calcCustoUndStr(it)
+    const prev=calcCmpPreview(it,ings)
+    const prevHtml=prev?`<div id="cPrev_${i}" style="padding:5px 12px 7px;background:linear-gradient(to right,#EBF5EE,var(--cream));border-top:1px dashed #B8DEC5;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="color:var(--ok);font-weight:800;font-size:13px">✓</span>
+      ${prev.convStr?`<span style="font-size:11px;color:var(--txt2)">${prev.convStr}</span>`:''}
+      <span style="font-size:11px;font-weight:700;color:var(--ok)">${prev.custoLeg}</span>
+      <span style="font-size:11px;color:var(--txt3)">·</span>
+      <span style="font-size:11px;color:var(--txt2)">+<strong style="color:var(--cara)">${prev.qtdBase%1===0?prev.qtdBase.toLocaleString('pt-BR'):parseFloat(prev.qtdBase.toFixed(4)).toLocaleString('pt-BR')} ${prev.unBase}</strong> no estoque</span>
+    </div>`:`<div id="cPrev_${i}" style="padding:4px 12px 5px;background:var(--cream);border-top:1px solid var(--cream2)">
+      <span style="font-size:11px;color:var(--txt3);font-style:italic">Preencha a quantidade, unidade e valor para ver o cálculo do custo</span>
+    </div>`
     return`
-    <div class="items-row" style="grid-template-columns:3fr 65px 60px 110px 110px 26px 26px">
-      <select onchange="selectIngCmp(${i},this.value)" style="padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
-        <option value="">Selecionar...</option>
-        ${ings.map(p=>`<option value="${p.id}" ${it.pId===p.id?'selected':''}>${p.nome}</option>`).join('')}
-        <option value="_free" ${it.pId==='_free'?'selected':''}>Outro (livre)</option>
-        <option value="__novo__">＋ Novo ingrediente...</option>
-      </select>
-      <input type="number" value="${it.qtd||''}" min="0.01" step="0.01" placeholder="Qtd" oninput="updateCmpItem(${i},'qtd',this.value)" onblur="if(!tempItems[${i}]._embMode)renderCItens()">
-      <select onchange="updateCmpItem(${i},'und',0);tempItems[${i}].und=this.value;renderCItens()" style="padding:5px 4px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%">
-        <option value="">—</option>
-        ${['g','kg','mg','ml','L','un','cx','pct'].map(u=>`<option value="${u}" ${it.und===u?'selected':''}>${u}</option>`).join('')}
-      </select>
-      <input type="number" value="${it.valor||''}" min="0" step="0.01" placeholder="R$ pago" oninput="updateCmpItem(${i},'valor',this.value)" onblur="if(!tempItems[${i}]._embMode)renderCItens()">
-      <span id="cCusto_${i}" style="font-size:11px;font-weight:700;color:${custoStr!=='—'?'var(--ok)':'var(--txt3)'};display:flex;align-items:center;padding:0 4px">${custoStr}</span>
-      <button class="btn-ic" onclick="tempItems[${i}]._embMode=!tempItems[${i}]._embMode;renderCItens()" title="Calcular por embalagem" style="padding:4px;color:${it._embMode?'var(--cara)':'var(--txt3)'}">📦</button>
-      <button class="btn-ic btn-d" onclick="removeCmpItem(${i})" style="padding:4px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    </div>
-    ${it._embMode&&!it._novoMode?`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--cream);border:1.5px solid var(--cara2);border-radius:8px;margin-bottom:6px;flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:700;color:var(--cara);white-space:nowrap">📦 Embalagens:</span>
-      <input id="cEmb_n_${i}" type="number" min="1" step="1" placeholder="Qtd" value="${it._nEmb||''}" oninput="calcEmb(${i})" style="width:55px;padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
-      <span style="font-size:12px;color:var(--txt3);font-weight:700">×</span>
-      <input id="cEmb_p_${i}" type="number" min="0.01" step="0.01" placeholder="Peso" value="${it._pesoEmb||''}" oninput="calcEmb(${i})" style="width:65px;padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
-      <select id="cEmb_u_${i}" onchange="calcEmb(${i})" style="padding:5px 4px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
-        ${['g','kg','mg','ml','L','un'].map(u=>`<option value="${u}" ${(it._embUnd||'g')===u?'selected':''}>${u}</option>`).join('')}
-      </select>
-      <span style="font-size:11px;color:var(--txt3)">=</span>
-      <span id="cEmb_tot_${i}" style="font-size:12px;font-weight:700;color:var(--choc);min-width:60px">${it._nEmb&&it._pesoEmb?(it._nEmb*it._pesoEmb)+(it._embUnd||'g'):' —'}</span>
-      <button class="btn btn-p btn-sm" onclick="aplicarEmb(${i})" style="padding:4px 10px;font-size:11px">↑ Aplicar</button>
-    </div>`:''}
-    ${it._novoMode?`<div style="background:var(--cream);border:1.5px solid var(--cara);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px">
-      <div style="font-size:11px;font-weight:700;color:var(--cara);text-transform:uppercase;letter-spacing:.5px">Novo Ingrediente</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <input id="cNovoIngNome_${i}" placeholder="Nome do ingrediente *" style="flex:2;min-width:130px;padding:7px 10px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarNovoIngCmp(${i})}">
-        <select id="cNovoIngUnd_${i}" style="flex:1;min-width:80px;padding:7px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)">
-          ${REC_UNIDS.map(u=>`<option value="${u}">${u}</option>`).join('')}
+    <div style="border:1.5px solid var(--cream2);border-radius:8px;overflow:hidden;margin-bottom:8px;background:var(--white)">
+      <div style="display:grid;grid-template-columns:2.2fr 62px 56px 100px 26px 26px;gap:6px;padding:8px 10px;align-items:center">
+        ${it._novoMode
+          ?`<span style="font-size:12px;color:var(--cara);font-weight:600">Novo ingrediente ↓</span>`
+          :`<select onchange="selectIngCmp(${i},this.value)" style="${iStl}">
+              <option value="">Selecionar ingrediente...</option>
+              ${ings.map(p=>`<option value="${p.id}" ${it.pId===p.id?'selected':''}>${p.nome} (${p.un})</option>`).join('')}
+              <option value="_free" ${it.pId==='_free'?'selected':''}>Livre (sem vínculo)</option>
+              <option value="__novo__">＋ Novo ingrediente...</option>
+            </select>`}
+        <input type="number" value="${it.qtd||''}" min="0.001" step="any" placeholder="Qtd"
+          oninput="updateCmpItem(${i},'qtd',this.value)"
+          onblur="if(!tempItems[${i}]._embMode)renderCItens()"
+          style="${iStl};text-align:right">
+        <select onchange="tempItems[${i}].und=this.value;updateCmpItem(${i},'und',0)" style="${iStl};padding:6px 4px">
+          <option value="">—</option>
+          ${['g','kg','mg','ml','L','un','cx','pct'].map(u=>`<option value="${u}" ${it.und===u?'selected':''}>${u}</option>`).join('')}
         </select>
-        <input id="cNovoIngCat_${i}" placeholder="Categoria (opcional)" style="flex:2;min-width:110px;padding:7px 10px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)">
+        <input type="number" value="${it.valor||''}" min="0" step="0.01" placeholder="R$ total"
+          oninput="updateCmpItem(${i},'valor',this.value)"
+          onblur="if(!tempItems[${i}]._embMode)renderCItens()"
+          style="${iStl};text-align:right">
+        <button class="btn-ic" onclick="tempItems[${i}]._embMode=!tempItems[${i}]._embMode;renderCItens()" title="Calcular por embalagens (N × Peso)" style="padding:4px;color:${it._embMode?'var(--cara)':'var(--txt3)'}">📦</button>
+        <button class="btn-ic btn-d" onclick="removeCmpItem(${i})" style="padding:4px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
-      <div style="display:flex;gap:6px">
-        <button type="button" class="btn btn-p btn-sm" onclick="salvarNovoIngCmp(${i})">Criar ingrediente</button>
-        <button type="button" class="btn btn-s btn-sm" onclick="cancelarNovoIngCmp(${i})">✕ Cancelar</button>
-      </div>
-    </div>`:''}
-  `}).join('')
+      ${prevHtml}
+      ${it._embMode&&!it._novoMode?`<div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--ivory);border-top:1.5px solid var(--cara2);flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:var(--cara);white-space:nowrap">📦 Embalagens:</span>
+        <input id="cEmb_n_${i}" type="number" min="1" step="1" placeholder="Qtd" value="${it._nEmb||''}" oninput="calcEmb(${i})" style="width:55px;padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
+        <span style="font-size:12px;color:var(--txt3);font-weight:700">×</span>
+        <input id="cEmb_p_${i}" type="number" min="0.001" step="any" placeholder="Peso/Vol" value="${it._pesoEmb||''}" oninput="calcEmb(${i})" style="width:70px;padding:5px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
+        <select id="cEmb_u_${i}" onchange="calcEmb(${i})" style="padding:5px 4px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt)">
+          ${['g','kg','ml','L','un'].map(u=>`<option value="${u}" ${(it._embUnd||'g')===u?'selected':''}>${u}</option>`).join('')}
+        </select>
+        <span style="font-size:11px;color:var(--txt3)">=</span>
+        <span id="cEmb_tot_${i}" style="font-size:13px;font-weight:800;color:var(--choc);min-width:70px">${it._nEmb&&it._pesoEmb?((it._nEmb*it._pesoEmb)%1===0?(it._nEmb*it._pesoEmb):(it._nEmb*it._pesoEmb).toFixed(3))+' '+(it._embUnd||'g'):' —'}</span>
+        <button class="btn btn-p btn-sm" onclick="aplicarEmb(${i})" style="padding:5px 12px;font-size:11px">↑ Aplicar</button>
+        <span style="font-size:10px;color:var(--txt3);flex-basis:100%">Ex: comprei 2 latas de 395g → Qtd:2 × Peso:395 g → Aplicar → total 790g</span>
+      </div>`:''}
+      ${it._novoMode?`<div style="background:var(--ivory);border-top:1.5px solid var(--cara);padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--cara);text-transform:uppercase;letter-spacing:.5px">Cadastrar novo ingrediente</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <input id="cNovoIngNome_${i}" placeholder="Nome *" style="flex:2;min-width:130px;padding:7px 10px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarNovoIngCmp(${i})}">
+          <select id="cNovoIngUnd_${i}" style="flex:1;min-width:80px;padding:7px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)">
+            ${REC_UNIDS.map(u=>`<option value="${u}">${u}</option>`).join('')}
+          </select>
+          <input id="cNovoIngCat_${i}" placeholder="Categoria" style="flex:2;min-width:110px;padding:7px 10px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;color:var(--txt)">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="btn btn-p btn-sm" onclick="salvarNovoIngCmp(${i})">Criar ingrediente</button>
+          <button type="button" class="btn btn-s btn-sm" onclick="cancelarNovoIngCmp(${i})">✕ Cancelar</button>
+        </div>
+      </div>`:''}
+    </div>`
+  }).join('')
+  // cabeçalho das colunas
+  const hdr=document.getElementById('cItensHdr')
+  if(hdr)hdr.innerHTML=`<div style="display:grid;grid-template-columns:2.2fr 62px 56px 100px 26px 26px;gap:6px;padding:5px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--txt3);font-weight:700">
+    <span>Ingrediente</span><span style="text-align:right">Qtd</span><span>Und</span><span style="text-align:right">R$ Total</span><span></span><span></span>
+  </div>`
 }
 function selectIngCmp(i,pId){
   if(pId==='__novo__'){
@@ -1450,24 +1536,25 @@ function cancelarNovoIngCmp(i){
   renderCItens()
 }
 function calcCustoUndStr(it){
-  const qtd=parseFloat(it.qtd)||0;const valor=parseFloat(it.valor)||0;const und=it.und||''
-  if(!qtd||!valor||!und)return'—'
-  const custo=valor/qtd
-  // mostra em und do estoque se tiver pId vinculado
-  if(it.pId&&it.pId!=='_free'&&it.pId!==''){
-    const prod=DB.get(S.PRODUTOS).find(p=>p.id===it.pId)
-    if(prod&&prod.un&&prod.un!==und){
-      const qtdEmEst=converterUnidade(qtd,und,prod.un)
-      if(qtdEmEst>0)return`R$${(valor/qtdEmEst).toFixed(4)}/${prod.un}`
-    }
-  }
-  return`R$${custo.toFixed(4)}/${und}`
+  const prev=calcCmpPreview(it)
+  if(!prev)return'—'
+  return prev.custoLeg
 }
 function updateCmpItem(i,f,v){
   if(f!=='und')tempItems[i][f]=parseFloat(v)||0
   tempItems[i].sub=tempItems[i].valor||0
-  const custoEl=document.getElementById('cCusto_'+i)
-  if(custoEl){const s=calcCustoUndStr(tempItems[i]);custoEl.textContent=s;custoEl.style.color=s!=='—'?'var(--ok)':'var(--txt3)'}
+  // atualiza preview inline sem rebuildar tudo
+  const prev=calcCmpPreview(tempItems[i])
+  const prevEl=document.getElementById('cPrev_'+i)
+  if(prevEl&&prev){
+    prevEl.style.background='linear-gradient(to right,#EBF5EE,var(--cream))'
+    prevEl.style.borderTopColor='#B8DEC5'
+    prevEl.innerHTML=`<span style="color:var(--ok);font-weight:800;font-size:13px">✓</span>
+      ${prev.convStr?`<span style="font-size:11px;color:var(--txt2)">${prev.convStr}</span>`:''}
+      <span style="font-size:11px;font-weight:700;color:var(--ok)">${prev.custoLeg}</span>
+      <span style="font-size:11px;color:var(--txt3)">·</span>
+      <span style="font-size:11px;color:var(--txt2)">+<strong style="color:var(--cara)">${prev.qtdBase%1===0?prev.qtdBase:parseFloat(prev.qtdBase.toFixed(4))} ${prev.unBase}</strong> no estoque</span>`
+  }
   calcCmpTotals()
 }
 function addCmpItem(){tempItems.push({pId:'',nome:'',qtd:1,und:'',valor:0,sub:0});renderCItens();calcCmpTotals()}
@@ -1527,7 +1614,7 @@ function editCompra(id){
       <div id="cParcVal" style="padding:9px 12px;background:var(--cream);border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-weight:700;color:var(--cara)">${(c.parcelas||1)>1?fmt(c.total/(c.parcelas||1)):'—'}</div>
     </div></div>
     <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Itens Comprados</div>
-    <div class="items-tbl"><div class="items-hdr" style="grid-template-columns:3fr 65px 60px 110px 110px 26px 26px"><span>Ingrediente</span><span>Qtd</span><span>Und</span><span>Valor Total Pago</span><span>Custo/Unidade</span><span></span></div><div id="cItens"></div></div>
+    <div style="background:var(--cream);border-radius:7px;border:1px solid var(--cream2);overflow:hidden;margin-bottom:8px"><div id="cItensHdr"></div><div id="cItens"></div></div>
     <button class="btn btn-s btn-sm" onclick="addCmpItem()">+ Item</button>
     <div style="margin-top:12px" id="cTotals"></div>
     <div class="fg" style="margin-top:10px"><label>Observações</label><textarea id="cObs" placeholder="Observações...">${c.obs||''}</textarea></div>
@@ -1580,8 +1667,22 @@ function verCompra(id){
       <div><strong style="font-size:15px">${c.forn}</strong><div style="font-size:12px;color:var(--txt3);margin-top:3px">${fmtDate(c.data)}${c.nf?' · NF: '+c.nf:''}</div></div>
       <button class="btn btn-s btn-sm" onclick="closeModal();imprimirCompra('${c.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg> Imprimir</button>
     </div>
-    <div class="tc"><table><thead><tr><th>Item</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead><tbody>
-      ${c.itens.map(i=>`<tr><td>${i.nome||prodNome(i.pId)}</td><td>${i.qtd}</td><td>${fmt(i.pu)}</td><td>${fmt(i.sub)}</td></tr>`).join('')}
+    <div class="tc"><table><thead><tr><th>Ingrediente</th><th>Qtd comprada</th><th>Total pago</th><th>Custo calculado</th></tr></thead><tbody>
+      ${c.itens.map(it=>{
+        const qtd=parseFloat(it.qtd)||0,valor=parseFloat(it.valor!=null?it.valor:(it.pu||0)*(it.qtd||0))||0,und=it.und||''
+        let custoStr='—'
+        if(qtd&&valor){
+          let qtdBase=qtd,unBase=und||'un'
+          if(it.pId&&it.pId!=='_free'){const prod=DB.get(S.PRODUTOS).find(p=>p.id===it.pId);if(prod&&prod.un){if(und&&und!==prod.un){const qb=converterUnidade(qtd,und,prod.un);if(qb!=null&&qb>0){qtdBase=qb;unBase=prod.un}}else if(!und){unBase=prod.un}}}
+          if(qtdBase>0)custoStr=fmtCustoLeg(valor/qtdBase,unBase)
+        }
+        return`<tr>
+          <td><strong>${it.nome||prodNome(it.pId)}</strong></td>
+          <td>${qtd}${und?' '+und:''}</td>
+          <td>${fmt(valor)}</td>
+          <td style="color:var(--ok);font-weight:700">${custoStr}</td>
+        </tr>`
+      }).join('')}
     </tbody></table></div>
     <div style="margin-top:12px" class="totbox">
       <div class="trow"><span>Pagamento</span><span style="font-weight:600">${c.pgto}</span></div>
@@ -2142,32 +2243,42 @@ function confirmarSalvarPreco(preco){
 function renderIngredientes(){
   const el=document.getElementById('ingList');if(!el)return
   const estoqueIngs=DB.get(S.PRODUTOS).filter(p=>p.tipo==='ingrediente'&&p.ativo!==false)
-  const stl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%'
+  const stl='padding:6px 8px;border:1.5px solid var(--cream2);border-radius:7px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);width:100%;background:var(--white)'
   el.innerHTML=tempIng.map((ing,i)=>{
     const prod=ing.pId&&ing.pId!=='_custom'?estoqueIngs.find(p=>p.id===ing.pId):null
     const qtdNum=parseFloat(ing.qtd)||0
     const qtdConv=prod?converterUnidade(qtdNum,ing.und,prod.un):null
-    const custoInit=prod&&prod.custo>0&&qtdConv!=null?fmt(qtdConv*prod.custo):'—'
-    const taxaBase=prod&&prod.custo>0?`R$${prod.custo.toFixed(2)}/${prod.un}`:null
+    const custoLinha=prod&&prod.custo>0&&qtdConv!=null&&qtdConv>0?qtdConv*prod.custo:null
+    const custoInit=custoLinha!=null?fmt(custoLinha):'—'
     const semCusto=prod&&!prod.custo
+    // Taxa base legível
+    const taxaBaseLeg=prod&&prod.custo>0?fmtCustoLeg(prod.custo,prod.un):null
+    // Fórmula da linha: qtd und × custo/und = R$X
+    let formulaStr=''
+    if(prod&&prod.custo>0&&qtdConv!=null&&qtdConv>0){
+      const g=v=>v>=1?v.toFixed(2).replace('.',','):v>=0.001?v.toFixed(4).replace('.',','):v.toFixed(6).replace('.',',')
+      const qtdStr=qtdConv%1===0?qtdConv:parseFloat(qtdConv.toFixed(4))
+      formulaStr=`${qtdStr} ${prod.un} × R$${g(prod.custo)}/${prod.un}`
+    }
     return`
-    <div style="background:var(--ivory);border:1.5px solid var(--cream2);border-radius:8px;padding:8px 10px;margin-bottom:6px">
-      ${prod?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--cream2)">
-        <span style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Taxa base:</span>
-        ${taxaBase
-          ?`<span style="font-size:11px;font-weight:700;color:var(--ok)">${taxaBase}</span>
-             <span style="font-size:10px;color:var(--txt3)">· estoque: ${(prod.estoque||0)%1===0?(prod.estoque||0):(prod.estoque||0).toFixed(2)} ${prod.un}</span>`
-          :`<span style="font-size:11px;color:var(--warn);font-weight:600">sem custo cadastrado</span>
-             <button onclick="editCustoRapido('${prod.id}',${i})" style="font-size:10px;padding:2px 7px;background:var(--warn);color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600">Cadastrar</button>`}
+    <div style="background:var(--white);border:1.5px solid var(--cream2);border-radius:9px;overflow:hidden;margin-bottom:8px">
+      ${prod?`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--cream);border-bottom:1px solid var(--cream2);flex-wrap:wrap">
+        <span style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;flex-shrink:0">Taxa:</span>
+        ${taxaBaseLeg
+          ?`<span style="font-size:11px;font-weight:700;color:var(--ok)">${taxaBaseLeg}</span>
+             <span style="font-size:10px;color:var(--txt3);margin-left:4px">· estoque: ${(prod.estoque||0)%1===0?(prod.estoque||0).toLocaleString('pt-BR'):parseFloat((prod.estoque||0).toFixed(3)).toLocaleString('pt-BR')} ${prod.un}</span>`
+          :`<span style="font-size:11px;color:var(--warn);font-weight:600">⚠ sem custo cadastrado</span>
+             <button onclick="editCustoRapido('${prod.id}',${i})" style="font-size:10px;padding:2px 8px;background:var(--warn);color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600">Cadastrar custo</button>`}
+        ${prod?`<button class="btn-ic" onclick="editCustoRapido('${prod.id}',${i})" title="Editar custo" style="padding:3px;margin-left:auto;color:${semCusto?'var(--warn)':'var(--txt3)'}"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`:''}
       </div>`:''}
-      <div style="display:grid;grid-template-columns:70px 90px 1fr 80px 24px 30px;gap:6px;align-items:center">
-        <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value;atualizarCustoIngred(${i})" style="${stl}">
+      <div style="display:grid;grid-template-columns:70px 80px 1fr auto 28px;gap:6px;padding:8px 10px;align-items:center">
+        <input placeholder="Qtd" value="${ing.qtd||''}" oninput="tempIng[${i}].qtd=this.value;atualizarCustoIngred(${i})" style="${stl};text-align:right">
         <select onchange="tempIng[${i}].und=this.value;atualizarCustoIngred(${i})" style="${stl}">
           ${REC_UNIDS.map(u=>`<option value="${u}" ${ing.und===u?'selected':''}>${u}</option>`).join('')}
         </select>
         ${ing.pId==='_custom'
           ?`<div style="display:flex;gap:4px;align-items:center">
-              <button onclick="selectIngRec(${i},'')" title="Voltar à lista" style="padding:5px 8px;border:1.5px solid var(--cream2);border-radius:7px;background:var(--cream);font-size:11px;cursor:pointer;color:var(--txt2);font-family:inherit;white-space:nowrap;flex-shrink:0">← Lista</button>
+              <button onclick="selectIngRec(${i},'')" style="padding:5px 8px;border:1.5px solid var(--cream2);border-radius:7px;background:var(--cream);font-size:11px;cursor:pointer;color:var(--txt2);font-family:inherit;white-space:nowrap;flex-shrink:0">← Lista</button>
               <input id="ingNomeCustom_${i}" placeholder="Nome do ingrediente" value="${ing.nome||''}" oninput="tempIng[${i}].nome=this.value" style="${stl};border-color:var(--cara)">
             </div>`
           :`<select onchange="selectIngRec(${i},this.value)" style="${stl}">
@@ -2175,23 +2286,33 @@ function renderIngredientes(){
               ${estoqueIngs.map(p=>`<option value="${p.id}" ${ing.pId===p.id?'selected':''}>${p.nome} (${p.un})</option>`).join('')}
               <option value="_custom">＋ Digitar manualmente</option>
             </select>`}
-        <span id="recCusto_${i}" style="font-size:11px;font-weight:700;color:${custoInit!=='—'?'var(--cara)':'var(--txt3)'};text-align:right;display:flex;align-items:center;justify-content:flex-end">${custoInit}</span>
-        ${prod?`<button class="btn-ic" onclick="editCustoRapido('${prod.id}',${i})" title="Editar custo do ingrediente" style="padding:4px;color:${semCusto?'var(--warn)':'var(--txt3)'}"><svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`:'<span></span>'}
+        <div style="text-align:right;min-width:70px">
+          <span id="recCusto_${i}" style="font-size:13px;font-weight:800;color:${custoInit!=='—'?'var(--cara)':'var(--txt3)'}">${custoInit}</span>
+          <div id="recFormula_${i}" style="font-size:10px;color:var(--txt3);margin-top:1px">${formulaStr}</div>
+        </div>
         <button class="btn-ic btn-d" onclick="remIngrediente(${i})" style="padding:5px"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
     </div>`}).join('')
 }
 function atualizarCustoIngred(i){
   const ing=tempIng[i];const el=document.getElementById('recCusto_'+i);if(!el)return
-  if(!ing.pId||ing.pId==='_custom'){el.textContent='—';el.style.color='var(--txt3)'}
+  if(!ing.pId||ing.pId==='_custom'){el.textContent='—';el.style.color='var(--txt3)';el.nextElementSibling&&(el.nextElementSibling.textContent='')}
   else{
     const prod=DB.get(S.PRODUTOS).find(p=>p.id===ing.pId)
     if(!prod||!prod.custo){el.textContent='—';el.style.color='var(--txt3)'}
     else{
-      const qtdConv=converterUnidade(parseFloat(ing.qtd)||0,ing.und,prod.un)
+      const qtdNum=parseFloat(ing.qtd)||0
+      const qtdConv=converterUnidade(qtdNum,ing.und,prod.un)
       const custo=qtdConv!=null&&qtdConv>0?qtdConv*prod.custo:null
       el.textContent=custo!=null?fmt(custo):'—'
       el.style.color=custo!=null?'var(--cara)':'var(--txt3)'
+      // fórmula
+      const fEl=document.getElementById('recFormula_'+i)
+      if(fEl&&custo!=null&&qtdConv!=null&&qtdConv>0){
+        const g=v=>v>=1?v.toFixed(2).replace('.',','):v>=0.001?v.toFixed(4).replace('.',','):v.toFixed(6).replace('.',',')
+        const qtdStr=qtdConv%1===0?qtdConv:parseFloat(qtdConv.toFixed(4))
+        fEl.textContent=`${qtdStr} ${prod.un} × R$${g(prod.custo)}/${prod.un}`
+      }else if(fEl)fEl.textContent=''
     }
   }
   _atualizarSpansCusto()
