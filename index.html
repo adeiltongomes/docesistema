@@ -3002,9 +3002,11 @@ function producaoHTML(){
                       <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M3 9h18v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9zM3 9V7a2 2 0 012-2h14a2 2 0 012 2v2M8 5V3M16 5V3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                       ${p.lotes} lote${p.lotes!==1?'s':''}
                     </span>
-                    ${p.local?`<span style="display:inline-flex;align-items:center;gap:4px;background:#EEF3FF;border:1px solid #B8C8F0;border-radius:20px;padding:3px 11px;font-size:11px;color:#3A5AA0;font-weight:700">
-                      <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" fill="#3A5AA0"/></svg>
-                      ${p.local}</span>`:''}
+                    ${p.local
+                      ?`<span style="display:inline-flex;align-items:center;gap:4px;background:#EEF3FF;border:1px solid #B8C8F0;border-radius:20px;padding:3px 11px;font-size:11px;color:#3A5AA0;font-weight:700;cursor:pointer" onclick="definirLocalProducao('${p.id}','${p.local.replace(/'/g,"\\'")}')">
+                          <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" fill="#3A5AA0"/></svg>
+                          ${p.local}</span>`
+                      :`<button onclick="definirLocalProducao('${p.id}','')" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px dashed #B8C8F0;border-radius:20px;padding:3px 11px;font-size:11px;color:#8898C0;cursor:pointer;font-family:inherit">📍 + Local</button>`}
                     ${p.obs?`<span style="font-size:11px;color:var(--txt3);font-style:italic;background:var(--cream);border-radius:20px;padding:3px 10px">${p.obs}</span>`:''}
                   </div>
                 </div>
@@ -3046,6 +3048,20 @@ function producaoHTML(){
     })()}
   </div>`:`<div class="empty"><h3>Nenhuma produção ainda</h3><p>Vá em <strong>Receitas</strong> e clique em <strong>▶ Iniciar Produção</strong> para começar</p><button class="btn btn-p" style="margin-top:14px" onclick="navigate('receitas')">Ir para Receitas</button></div>`}
   `
+}
+function definirLocalProducao(id,atual){
+  const stl='width:100%;padding:10px;border:1.5px solid var(--cream2);border-radius:8px;font-size:14px;font-family:inherit;color:var(--txt);outline:none;margin-top:8px'
+  openModal('📍 Local de Produção',`
+    <p style="font-size:13px;color:var(--txt2);margin-bottom:4px">Onde esta produção foi realizada?</p>
+    <input id="localInp" type="text" value="${atual}" placeholder="Ex: Vila, Loja, Casa, Encomenda…" style="${stl}">`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-p" onclick="salvarLocalProducao('${id}')">Salvar</button>`)
+  setTimeout(()=>{const el=document.getElementById('localInp');if(el){el.focus();el.select()}},100)
+}
+function salvarLocalProducao(id){
+  const v=(document.getElementById('localInp')||{}).value||''
+  const all=DB.get(S.PRODUCOES);const i=all.findIndex(x=>x.id===id);if(i<0)return
+  all[i].local=v;DB.set(S.PRODUCOES,all);closeModal();render('producao')
 }
 function excluirProducao(id){
   confirmarModal('Remover este registro do histórico?',()=>{
