@@ -1219,7 +1219,7 @@ function renderEstTable(){
           ${!temCusto?`<div style="font-size:10px;color:var(--warn);font-weight:600;margin-top:2px">⚠ sem custo cadastrado</div>`:''}
         </td>
         <td style="white-space:nowrap">
-          <button class="btn btn-s btn-sm" style="margin-right:4px" onclick="ajustarEstoque('${p.id}')">Ajustar</button>
+          ${p.estoque<=0?`<button class="btn btn-sm" style="margin-right:4px;background:var(--cara);color:#fff;border-color:var(--cara);font-weight:700" onclick="reporEstoque('${p.id}')">↺ Repor</button>`:`<button class="btn btn-s btn-sm" style="margin-right:4px" onclick="ajustarEstoque('${p.id}')">Ajustar</button>`}
           <button class="btn-ic" style="margin-right:4px" onclick="editProd('${p.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="btn-ic btn-d" onclick="excluirProd('${p.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </td>
@@ -1393,6 +1393,90 @@ function confirmarAjuste(id){
 function excluirProd(id){
   if(!confirm('Excluir este item?'))return
   DB.set(S.PRODUTOS,DB.get(S.PRODUTOS).filter(x=>x.id!==id));toast('Item removido','ok');render('estoque')
+}
+function reporEstoque(id){
+  const p=DB.get(S.PRODUTOS).find(x=>x.id===id);if(!p)return
+  // busca última compra que contém este produto
+  const compras=DB.get(S.COMPRAS).slice().sort((a,b)=>b.data.localeCompare(a.data))
+  let ultForn='',ultQtd='',ultUnd=p.un||'g',ultValor=''
+  for(const c of compras){
+    const it=(c.itens||[]).find(i=>i.pId===id)
+    if(it){ultForn=c.forn||'';ultQtd=it.qtd||'';ultUnd=it.und||p.un||'g';ultValor=it.valor||it.sub||'';break}
+  }
+  const stl='padding:8px 10px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;width:100%;box-sizing:border-box;color:var(--txt);background:var(--white)'
+  const temHistorico=!!ultForn
+  openModal(`↺ Repor Estoque — ${p.nome}`,`
+    ${temHistorico
+      ?`<div style="background:#EFF9F0;border:1.5px solid var(--ok);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--ok);font-weight:600;margin-bottom:14px">✓ Dados pré-preenchidos da última compra (${ultForn})</div>`
+      :`<div style="background:#FFF8E1;border:1.5px solid #FFB300;border-radius:8px;padding:9px 12px;font-size:12px;color:#7A5A00;font-weight:600;margin-bottom:14px">⚠ Nenhuma compra anterior encontrada. Preencha os dados manualmente.</div>`}
+    <div class="frow">
+      <div class="fg"><label>Fornecedor</label><input id="rpForn" value="${ultForn}" placeholder="Nome do fornecedor" style="${stl}"></div>
+      <div class="fg"><label>Data da compra</label><input type="date" id="rpData" value="${today()}" style="${stl}"></div>
+    </div>
+    <div style="background:var(--cream);border:1.5px solid var(--cream2);border-radius:9px;padding:12px 14px;margin-bottom:4px">
+      <div style="font-size:11px;font-weight:700;color:var(--choc);margin-bottom:10px;letter-spacing:.4px">📦 QUANTIDADE E VALOR</div>
+      <div style="display:grid;grid-template-columns:1fr 90px auto 1fr;gap:8px;align-items:center">
+        <div>
+          <label style="font-size:11px;color:var(--txt3)">Quantidade</label>
+          <input id="rpQtd" type="number" min="0" step="any" value="${ultQtd}" placeholder="ex: 1" style="${stl}" oninput="calcReporPreview()">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--txt3)">Unidade</label>
+          <select id="rpUnd" style="${stl}" onchange="calcReporPreview()">
+            ${['g','kg','ml','L','un'].map(u=>`<option value="${u}" ${ultUnd===u?'selected':''}>${u}</option>`).join('')}
+          </select>
+        </div>
+        <div style="text-align:center;padding-top:16px;color:var(--txt3);font-size:13px">por</div>
+        <div>
+          <label style="font-size:11px;color:var(--txt3)">Valor total (R$)</label>
+          <input id="rpValor" type="number" min="0" step="0.01" value="${ultValor}" placeholder="ex: 8,90" style="${stl}" oninput="calcReporPreview()">
+        </div>
+      </div>
+      <div id="rpPrev" style="margin-top:9px;font-size:12px;min-height:18px;padding:6px 9px;background:var(--white);border-radius:6px;color:var(--txt3)">Preencha quantidade e valor para ver o custo calculado</div>
+    </div>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-p" style="background:var(--cara)" onclick="confirmarReposicao('${id}')">↺ Confirmar Reposição</button>`)
+  // força preview inicial se já tem dados
+  if(ultQtd&&ultValor)setTimeout(()=>calcReporPreview(),50)
+}
+function calcReporPreview(){
+  const qtd=parseFloat((document.getElementById('rpQtd')||{}).value)||0
+  const und=(document.getElementById('rpUnd')||{}).value||'g'
+  const valor=parseFloat((document.getElementById('rpValor')||{}).value)||0
+  const prev=document.getElementById('rpPrev');if(!prev)return
+  if(!qtd||!valor){prev.innerHTML='Preencha quantidade e valor para ver o custo calculado';prev.style.color='var(--txt3)';return}
+  // simula custo usando a unidade do produto (destino = p.un é desconhecido aqui, mas podemos mostrar em und)
+  const custo=valor/qtd
+  const leg=fmtCustoLeg(custo,und)
+  prev.innerHTML=`<span style="color:var(--ok);font-weight:700">✓ Custo: ${leg}</span> <span style="color:var(--txt3)">· +${qtd%1===0?qtd:parseFloat(qtd.toFixed(3))} ${und} no estoque</span>`
+  prev.style.color=''
+}
+function confirmarReposicao(id){
+  const forn=(document.getElementById('rpForn')||{}).value||''
+  if(!forn.trim()){toast('Informe o fornecedor','err');return}
+  const qtd=parseFloat((document.getElementById('rpQtd')||{}).value)||0
+  const und=(document.getElementById('rpUnd')||{}).value||'g'
+  const valor=parseFloat((document.getElementById('rpValor')||{}).value)||0
+  if(!qtd){toast('Informe a quantidade','err');return}
+  if(!valor){toast('Informe o valor','err');return}
+  const data=(document.getElementById('rpData')||{}).value||today()
+  const prods=DB.get(S.PRODUTOS);const pi=prods.findIndex(x=>x.id===id);if(pi<0)return
+  // converte para unidade do estoque
+  const un=prods[pi].un
+  const qtdEst=converterUnidade(qtd,und,un)??qtd
+  prods[pi].estoque=(prods[pi].estoque||0)+qtdEst
+  if(valor>0&&qtdEst>0)prods[pi].custo=valor/qtdEst
+  DB.set(S.PRODUTOS,prods)
+  // salva como nova compra
+  const item={pId:id,nome:prods[pi].nome,qtd,und,valor,sub:valor}
+  const cmp={id:genId(),forn:forn.trim(),data,itens:[item],total:valor,pgto:'',parcelas:1,valorParcela:null,nf:'',obs:'Reposição de estoque'}
+  const cmps=DB.get(S.COMPRAS);cmps.push(cmp);DB.set(S.COMPRAS,cmps)
+  const trans=DB.get(S.TRANS)
+  trans.push({id:genId(),tipo:'saida',cat:'Compra de insumos',desc:forn.trim(),val:valor,data,pgto:'',ref:cmp.id})
+  DB.set(S.TRANS,trans)
+  closeModal()
+  toast(`Estoque de "${prods[pi].nome}" reposto! +${qtdEst%1===0?qtdEst:parseFloat(qtdEst.toFixed(3))} ${un}`,'ok')
+  render('estoque')
 }
 
 // IDs dos ingredientes no modal de correção
