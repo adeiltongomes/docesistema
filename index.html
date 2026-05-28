@@ -367,20 +367,15 @@ function converterUnidade(qtd,from,to){
   if(V[from]!==undefined&&V[to]!==undefined)return qtd*V[from]/V[to]
   return null
 }
-// Formata custo legível: mostra unidade grande (kg/L) primeiro, pequena (g/ml) com 2 algarismos significativos
+// Formata custo legível: sempre em kg ou L (2 casas decimais), fácil de ler
 function fmtCustoLeg(custo,un){
   if(!custo||custo<=0)return'—'
-  const f2=v=>v.toFixed(2).replace('.',',')
-  const fs=v=>{
-    if(v>=1)return f2(v)
-    const s=parseFloat(v.toPrecision(2)).toString()
-    return(s.includes('e')?v.toFixed(6).replace(/\.?0+$/,''):s).replace('.',',')
-  }
-  if(un==='g')return`R$${f2(custo*1000)}/kg · R$${fs(custo)}/g`
-  if(un==='ml')return`R$${f2(custo*1000)}/L · R$${fs(custo)}/ml`
-  if(un==='kg')return`R$${f2(custo)}/kg · R$${fs(custo/1000)}/g`
-  if(un==='L')return`R$${f2(custo)}/L · R$${fs(custo/1000)}/ml`
-  return`R$${f2(custo)}/${un}`
+  const f=v=>'R$'+v.toFixed(2).replace('.',',')
+  if(un==='g')return f(custo*1000)+'/kg'
+  if(un==='ml')return f(custo*1000)+'/L'
+  if(un==='kg')return f(custo)+'/kg'
+  if(un==='L')return f(custo)+'/L'
+  return f(custo)+'/'+un
 }
 // Calcula preview de conversão para compras: retorna info de qtd base e custo
 function calcCmpPreview(it,ings){
@@ -1203,14 +1198,18 @@ function renderEstTable(){
         </td>`:''}
         <td>
           ${temCusto?`<div style="font-size:12px;font-weight:700;color:var(--choc);margin-bottom:4px">${custoLeg}</div>`:''}
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="font-size:10px;color:var(--txt3)">Editar: R$</span>
-            <input type="number" value="${p.custo||''}" min="0" step="0.000001" placeholder="0,00"
+          ${(()=>{
+            const eu=p.un==='g'?'kg':p.un==='ml'?'L':p.un
+            const ev=p.un==='g'?(p.custo*1000).toFixed(2):p.un==='ml'?(p.custo*1000).toFixed(2):(p.custo||'')
+            return`<div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:10px;color:var(--txt3)">R$</span>
+            <input type="number" value="${temCusto?ev:''}" min="0" step="0.01" placeholder="0,00"
               style="width:72px;padding:3px 5px;border:1.5px solid ${temCusto?'var(--cream2)':'var(--warn)'};border-radius:6px;font-size:11px;font-family:inherit;outline:none;color:var(--txt);background:${temCusto?'var(--cream)':'#FFF8F0'}"
-              onchange="salvarCustoInline('${p.id}',this.value,this)"
+              onchange="salvarCustoInline('${p.id}',this.value,this,'${eu}')"
               onkeydown="if(event.key==='Enter')this.blur()">
-            <span style="font-size:10px;color:var(--txt3)">/${p.un}</span>
-          </div>
+            <span style="font-size:10px;color:var(--txt3)">/${eu}</span>
+          </div>`
+          })()}
           ${!temCusto?`<div style="font-size:10px;color:var(--warn);font-weight:600;margin-top:2px">⚠ sem custo cadastrado</div>`:''}
         </td>
         <td style="white-space:nowrap">
@@ -1223,11 +1222,15 @@ function renderEstTable(){
   </tbody></table>`
 }
 
-function salvarCustoInline(id,val,inp){
-  const custo=parseFloat(val)||0
+function salvarCustoInline(id,val,inp,editUn){
+  let v=parseFloat(val)||0
   const prods=DB.get(S.PRODUTOS);const i=prods.findIndex(p=>p.id===id);if(i<0)return
-  prods[i].custo=custo;DB.set(S.PRODUTOS,prods)
-  if(inp){inp.style.border=custo>0?'1.5px solid var(--ok)':'1.5px solid var(--warn)';inp.style.background=custo>0?'var(--ivory)':'#FFF8F0';setTimeout(()=>{inp.style.border=custo>0?'1.5px solid var(--cream2)':'1.5px solid var(--warn)'},1200)}
+  const un=prods[i].un
+  // converte do valor digitado (editUn) para o custo por unidade do estoque
+  if(editUn==='kg'&&un==='g')v=v/1000
+  else if(editUn==='L'&&un==='ml')v=v/1000
+  prods[i].custo=v;DB.set(S.PRODUTOS,prods)
+  if(inp){inp.style.border=v>0?'1.5px solid var(--ok)':'1.5px solid var(--warn)';inp.style.background=v>0?'var(--ivory)':'#FFF8F0';setTimeout(()=>{inp.style.border=v>0?'1.5px solid var(--cream2)':'1.5px solid var(--warn)'},1200)}
   toast(`Custo de "${prods[i].nome}" atualizado!`,'ok')
 }
 function salvarPrecoInline(id,val,inp){
