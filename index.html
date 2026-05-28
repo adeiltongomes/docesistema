@@ -2352,7 +2352,7 @@ function renderReceitasGrid(){
         ${r.ingredientes&&r.ingredientes.length?`<div class="rec-ing-preview">${r.ingredientes.slice(0,3).map(i=>`<span>${i.qtd} ${i.und} ${i.nome}</span>`).join('')}${r.ingredientes.length>3?`<span style="color:var(--txt3)">+${r.ingredientes.length-3} ingredientes</span>`:''}</div>`:''}
         <div class="rec-actions">
           <button class="btn btn-s btn-sm" onclick="verReceita('${r.id}')">Ver Receita</button>
-          <button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="produzirReceita('${r.id}')">⚙ Produzir</button>
+          <button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="this.disabled=true;this.textContent='⏳ Aguarde...';produzirReceita('${r.id}');setTimeout(()=>{this.disabled=false;this.textContent='▶ Iniciar Produção'},400)">▶ Iniciar Produção</button>
           <button class="btn-ic" onclick="editReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="btn-ic btn-d" onclick="excluirReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>
@@ -2743,8 +2743,8 @@ function produzirReceita(id){
         style="width:70px;padding:8px;border:1.5px solid var(--cara);border-radius:8px;font-size:18px;font-weight:700;text-align:center;font-family:inherit;color:var(--txt);outline:none">
     </div>
     <div id="previewProdIngredientes"></div>`
-  openModal('⚙ Produzir — '+r.nome,body,
-    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" style="background:var(--ok)" onclick="confirmarProducao('${id}')">Confirmar Produção</button>`)
+  openModal('▶ Iniciar Produção — '+r.nome,body,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button id="btnConfProd" class="btn btn-p" style="background:var(--ok)" onclick="this.disabled=true;this.textContent='⏳ Processando...';confirmarProducao('${id}')">✓ Confirmar Produção</button>`)
   atualizarPreviewProd(id,1)
 }
 
@@ -2849,20 +2849,24 @@ function confirmarProducao(id){
 function producaoHTML(){
   const hist=DB.get(S.PRODUCOES).slice().reverse()
   const total=hist.reduce((a,x)=>a+(x.custo||0),0)
+  const mes=thisMonth()
+  const totalMes=hist.filter(x=>x.data&&x.data.startsWith(mes)).reduce((a,x)=>a+(x.custo||0),0)
   const hoje=hist.filter(x=>x.data===today()).length
   return`
   <div class="ph">
     <div><h2>Produção</h2><p>Histórico de receitas produzidas</p></div>
-    <div class="ph-actions">
+    <div class="ph-actions" style="gap:6px">
+      <button class="btn btn-s btn-sm" onclick="relatorioProducao()">📊 Relatório</button>
+      <button class="btn btn-s btn-sm" onclick="imprimirProducao()">🖨 Imprimir</button>
       <button class="btn btn-p" onclick="navigate('receitas')">+ Nova Produção</button>
     </div>
   </div>
   ${hist.length?`
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
     <div style="background:var(--white);border-radius:10px;padding:14px 16px;border:1.5px solid var(--cream2)">
-      <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Total produzido</div>
+      <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Total produções</div>
       <div style="font-size:22px;font-weight:800;color:var(--choc)">${hist.length}</div>
-      <div style="font-size:11px;color:var(--txt3)">produções</div>
+      <div style="font-size:11px;color:var(--txt3)">registros</div>
     </div>
     <div style="background:var(--white);border-radius:10px;padding:14px 16px;border:1.5px solid var(--cream2)">
       <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Hoje</div>
@@ -2870,30 +2874,39 @@ function producaoHTML(){
       <div style="font-size:11px;color:var(--txt3)">produção${hoje!==1?'s':''}</div>
     </div>
     <div style="background:var(--white);border-radius:10px;padding:14px 16px;border:1.5px solid var(--cream2)">
+      <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Custo este mês</div>
+      <div style="font-size:22px;font-weight:800;color:var(--choc)">${fmt(totalMes)}</div>
+      <div style="font-size:11px;color:var(--txt3)">em ingredientes</div>
+    </div>
+    <div style="background:var(--white);border-radius:10px;padding:14px 16px;border:1.5px solid var(--cream2)">
       <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Custo total</div>
       <div style="font-size:22px;font-weight:800;color:var(--choc)">${fmt(total)}</div>
-      <div style="font-size:11px;color:var(--txt3)">em ingredientes</div>
+      <div style="font-size:11px;color:var(--txt3)">acumulado</div>
     </div>
   </div>
   <div style="display:flex;flex-direction:column;gap:10px">
     ${hist.map(p=>{
       const d=p.data?new Date(p.data+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'
-      const ingPreview=(p.ingredientes||[]).slice(0,4).map(i=>`<span style="display:inline-block;background:var(--cream);border:1px solid var(--cream2);border-radius:4px;padding:1px 7px;font-size:11px;color:var(--txt2);margin:2px 2px 0 0">${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}</span>`).join('')
-      const maisIng=(p.ingredientes||[]).length>4?`<span style="font-size:11px;color:var(--txt3)">+${(p.ingredientes||[]).length-4} mais</span>`:''
+      const ingAll=p.ingredientes||[]
+      const ingPreview=ingAll.slice(0,4).map(i=>`<span style="display:inline-block;background:var(--cream);border:1px solid var(--cream2);border-radius:4px;padding:1px 7px;font-size:11px;color:var(--txt2);margin:2px 2px 0 0">${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}</span>`).join('')
+      const maisIng=ingAll.length>4?`<span style="font-size:11px;color:var(--txt3);margin-left:2px">+${ingAll.length-4} mais</span>`:''
       return`<div style="background:var(--white);border:1.5px solid var(--cream2);border-radius:10px;padding:14px 16px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
           <div>
             <div style="font-size:15px;font-weight:800;color:var(--choc)">${p.recNome}</div>
-            <div style="font-size:12px;color:var(--txt3);margin-top:2px">${d} · ${p.lotes} lote${p.lotes!==1?'s':''}</div>
+            <div style="font-size:12px;color:var(--txt3);margin-top:2px">${d} · ${p.lotes} lote${p.lotes!==1?'s':''}${p.obs?` · <em>${p.obs}</em>`:''}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
             ${p.custo>0?`<div style="text-align:right"><div style="font-size:11px;color:var(--txt3)">Custo</div><div style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(p.custo)}</div></div>`:''}
             ${p.produzido?`<div style="background:#EFF9F0;border:1.5px solid var(--ok);border-radius:7px;padding:5px 10px;text-align:center">
               <div style="font-size:10px;color:var(--ok);font-weight:700">+ ESTOQUE</div>
               <div style="font-size:12px;font-weight:700;color:var(--ok)">${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(2)} ${p.produzido.un}</div>
               <div style="font-size:10px;color:var(--txt3)">${p.produzido.nome}</div>
             </div>`:''}
-            <button class="btn-ic btn-d" onclick="excluirProducao('${p.id}')" title="Remover do histórico"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <div style="display:flex;gap:4px">
+              <button class="btn-ic" onclick="editarProducao('${p.id}')" title="Editar registro"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button class="btn-ic btn-d" onclick="excluirProducao('${p.id}')" title="Remover do histórico"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
           </div>
         </div>
         <div style="border-top:1px solid var(--cream2);padding-top:8px">
@@ -2902,7 +2915,7 @@ function producaoHTML(){
         </div>
       </div>`
     }).join('')}
-  </div>`:`<div class="empty"><h3>Nenhuma produção ainda</h3><p>Vá em <strong>Receitas</strong> e clique em <strong>⚙ Produzir</strong> para iniciar</p><button class="btn btn-p" style="margin-top:14px" onclick="navigate('receitas')">Ir para Receitas</button></div>`}
+  </div>`:`<div class="empty"><h3>Nenhuma produção ainda</h3><p>Vá em <strong>Receitas</strong> e clique em <strong>▶ Iniciar Produção</strong> para começar</p><button class="btn btn-p" style="margin-top:14px" onclick="navigate('receitas')">Ir para Receitas</button></div>`}
   `
 }
 function excluirProducao(id){
@@ -2910,6 +2923,110 @@ function excluirProducao(id){
     DB.set(S.PRODUCOES,DB.get(S.PRODUCOES).filter(x=>x.id!==id))
     toast('Registro removido','ok');render('producao')
   })
+}
+function editarProducao(id){
+  const p=DB.get(S.PRODUCOES).find(x=>x.id===id);if(!p)return
+  const stl='padding:8px 10px;border:1.5px solid var(--cream2);border-radius:7px;font-size:13px;font-family:inherit;outline:none;width:100%;box-sizing:border-box;color:var(--txt);background:var(--white)'
+  openModal('Editar Registro de Produção',`
+    <div style="background:var(--cream);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;font-weight:700;color:var(--choc)">${p.recNome} · ${p.lotes} lote${p.lotes!==1?'s':''}</div>
+    <div class="frow">
+      <div class="fg"><label>Data da produção</label><input type="date" id="epData" value="${p.data||today()}" style="${stl}"></div>
+      <div class="fg"><label>Lotes produzidos</label><input type="number" id="epLotes" value="${p.lotes||1}" min="1" step="1" style="${stl}"></div>
+    </div>
+    <div class="fg"><label>Observação (opcional)</label><input id="epObs" value="${p.obs||''}" placeholder="Ex: produção para encomenda da Maria" style="${stl}"></div>`,
+    `<button class="btn btn-s" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-p" onclick="salvarEdicaoProducao('${id}')">Salvar</button>`)
+}
+function salvarEdicaoProducao(id){
+  const all=DB.get(S.PRODUCOES);const i=all.findIndex(x=>x.id===id);if(i<0)return
+  all[i].data=(document.getElementById('epData')||{}).value||all[i].data
+  all[i].lotes=parseInt((document.getElementById('epLotes')||{}).value)||all[i].lotes
+  all[i].obs=(document.getElementById('epObs')||{}).value||''
+  DB.set(S.PRODUCOES,all);closeModal();toast('Registro atualizado!','ok');render('producao')
+}
+function relatorioProducao(){
+  const hist=DB.get(S.PRODUCOES)
+  if(!hist.length){toast('Nenhuma produção para gerar relatório','warn');return}
+  // agrupa por receita
+  const porReceita={}
+  hist.forEach(p=>{
+    if(!porReceita[p.recNome])porReceita[p.recNome]={nome:p.recNome,vezes:0,lotes:0,custo:0}
+    porReceita[p.recNome].vezes++
+    porReceita[p.recNome].lotes+=p.lotes||1
+    porReceita[p.recNome].custo+=p.custo||0
+  })
+  const rows=Object.values(porReceita).sort((a,b)=>b.vezes-a.vezes).map(r=>`
+    <tr>
+      <td><strong>${r.nome}</strong></td>
+      <td style="text-align:center">${r.vezes}×</td>
+      <td style="text-align:center">${r.lotes} lote${r.lotes!==1?'s':''}</td>
+      <td style="text-align:right;font-weight:700;color:var(--cara)">${r.custo>0?fmt(r.custo):'—'}</td>
+    </tr>`).join('')
+  // agrupa por mês
+  const porMes={}
+  hist.forEach(p=>{
+    const m=(p.data||'').slice(0,7);if(!m)return
+    if(!porMes[m])porMes[m]={mes:m,qtd:0,custo:0}
+    porMes[m].qtd++;porMes[m].custo+=p.custo||0
+  })
+  const meses=Object.values(porMes).sort((a,b)=>b.mes.localeCompare(a.mes)).slice(0,6)
+  const rowsMes=meses.map(m=>{
+    const [a,mo]=m.mes.split('-')
+    const nome=new Date(+a,+mo-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})
+    return`<tr><td>${nome}</td><td style="text-align:center">${m.qtd}</td><td style="text-align:right;font-weight:700;color:var(--cara)">${m.custo>0?fmt(m.custo):'—'}</td></tr>`
+  }).join('')
+  const custoTotal=hist.reduce((a,x)=>a+(x.custo||0),0)
+  openModal('📊 Relatório de Produção',`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:var(--cream);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--txt3);font-weight:600">Total de Produções</div>
+        <div style="font-size:24px;font-weight:800;color:var(--choc)">${hist.length}</div>
+      </div>
+      <div style="background:var(--cream);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--txt3);font-weight:600">Custo Total</div>
+        <div style="font-size:24px;font-weight:800;color:var(--cara)">${fmt(custoTotal)}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Por Receita</div>
+    <table style="font-size:12px;margin-bottom:16px">
+      <thead><tr><th>Receita</th><th style="text-align:center">Vezes</th><th style="text-align:center">Lotes</th><th style="text-align:right">Custo</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Por Mês</div>
+    <table style="font-size:12px">
+      <thead><tr><th>Mês</th><th style="text-align:center">Produções</th><th style="text-align:right">Custo</th></tr></thead>
+      <tbody>${rowsMes}</tbody>
+    </table>`,
+    `<button class="btn btn-s" onclick="closeModal()">Fechar</button>
+     <button class="btn btn-p" onclick="closeModal();imprimirProducao()">🖨 Imprimir</button>`)
+}
+function imprimirProducao(){
+  const hist=DB.get(S.PRODUCOES).slice().reverse()
+  const emp=DB.get(S.EMPRESA)||{}
+  const total=hist.reduce((a,x)=>a+(x.custo||0),0)
+  const linhas=hist.map(p=>{
+    const d=p.data?new Date(p.data+'T12:00').toLocaleDateString('pt-BR'):'—'
+    const ings=(p.ingredientes||[]).map(i=>`${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}`).join(', ')
+    return`<tr style="border-bottom:1px solid #eee">
+      <td style="padding:6px 8px">${d}</td>
+      <td style="padding:6px 8px;font-weight:600">${p.recNome}</td>
+      <td style="padding:6px 8px;text-align:center">${p.lotes}</td>
+      <td style="padding:6px 8px;font-size:11px;color:#666">${ings}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:700">${p.custo>0?'R$'+p.custo.toFixed(2).replace('.',','):'—'}</td>
+    </tr>`}).join('')
+  const w=window.open('','_blank','width=800,height=600')
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Produção</title>
+  <style>body{font-family:Arial,sans-serif;padding:24px;color:#333}h1{font-size:20px;margin:0 0 4px}p{font-size:12px;color:#666;margin:0 0 20px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f5f0ea;padding:7px 8px;text-align:left;border-bottom:2px solid #d4a574;font-size:11px;text-transform:uppercase;letter-spacing:.5px}.total{background:#f5f0ea;font-weight:700}@media print{button{display:none}}</style>
+  </head><body>
+  <h1>${emp.nome||'DoceSistema'} — Relatório de Produção</h1>
+  <p>Gerado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</p>
+  <table><thead><tr><th>Data</th><th>Receita</th><th style="text-align:center">Lotes</th><th>Ingredientes</th><th style="text-align:right">Custo</th></tr></thead>
+  <tbody>${linhas}</tbody>
+  <tfoot><tr class="total"><td colspan="4" style="padding:8px;text-align:right">Total geral</td><td style="padding:8px;text-align:right">R$${total.toFixed(2).replace('.',',')}</td></tr></tfoot>
+  </table>
+  <br><button onclick="window.print()">Imprimir</button>
+  </body></html>`)
+  w.document.close()
 }
 
 function _ytId(url){
@@ -2976,7 +3093,7 @@ function verReceita(id){
       <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;font-size:11px;font-weight:600;letter-spacing:.3px;text-shadow:0 1px 4px rgba(0,0,0,.7)">Clique para assistir no YouTube</div>
     </a>`:
     `<a href="${r.video}" target="_blank" rel="noopener" class="btn btn-s btn-sm" style="margin-bottom:14px;display:inline-flex"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Assistir vídeo</a>`}`:''}
-  `,`<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-s" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="closeModal();produzirReceita('${r.id}')">⚙ Produzir</button><button class="btn btn-p" onclick="closeModal();editReceita('${r.id}')">Editar</button>`,false)
+  `,`<button class="btn btn-s" onclick="closeModal()">Fechar</button><button class="btn btn-s" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="closeModal();produzirReceita('${r.id}')">▶ Iniciar Produção</button><button class="btn btn-p" onclick="closeModal();editReceita('${r.id}')">Editar</button>`,false)
 }
 
 // ===== PRINT =====
