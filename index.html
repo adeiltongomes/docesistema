@@ -248,6 +248,10 @@ tbody td:first-child{font-weight:600;color:var(--txt2);white-space:nowrap}
       Financeiro
     </div>
     <div class="snav-lbl">Produção</div>
+    <div class="ni" data-page="producao" onclick="navigate('producao')">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M2 20h20M6 20V10M10 20V4M14 20v-8M18 20v-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Produção
+    </div>
     <div class="ni" data-page="os" onclick="navigate('os')">
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Ordens de Serviço
@@ -322,6 +326,7 @@ tbody td:first-child{font-weight:600;color:var(--txt2);white-space:nowrap}
     <div class="page" id="page-os"></div>
     <div class="page" id="page-relatorios"></div>
     <div class="page" id="page-receitas"></div>
+    <div class="page" id="page-producao"></div>
     <div class="page" id="page-empresa"></div>
   </div>
 </main>
@@ -339,8 +344,8 @@ tbody td:first-child{font-weight:600;color:var(--txt2);white-space:nowrap}
 
 <script>
 // ===== CONSTANTS =====
-const S={CLIENTES:'ds_cli',PRODUTOS:'ds_prod',VENDAS:'ds_vnd',ORCAMENTOS:'ds_orc',COMPRAS:'ds_cmp',TRANS:'ds_trn',OS:'ds_os',EMPRESA:'ds_emp',RECEITAS:'ds_rec'}
-const PTITLES={dashboard:'Dashboard',vendas:'Vendas',orcamentos:'Orçamentos',clientes:'Clientes',estoque:'Estoque',compras:'Compras',financeiro:'Financeiro',os:'Ordens de Serviço',relatorios:'Relatórios',empresa:'Minha Empresa',receitas:'Receitas'}
+const S={CLIENTES:'ds_cli',PRODUTOS:'ds_prod',VENDAS:'ds_vnd',ORCAMENTOS:'ds_orc',COMPRAS:'ds_cmp',TRANS:'ds_trn',OS:'ds_os',EMPRESA:'ds_emp',RECEITAS:'ds_rec',PRODUCOES:'ds_producoes'}
+const PTITLES={dashboard:'Dashboard',vendas:'Vendas',orcamentos:'Orçamentos',clientes:'Clientes',estoque:'Estoque',compras:'Compras',financeiro:'Financeiro',os:'Ordens de Serviço',relatorios:'Relatórios',empresa:'Minha Empresa',receitas:'Receitas',producao:'Produção'}
 
 // ===== DB =====
 const DB={get:k=>JSON.parse(localStorage.getItem(k)||'[]'),set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),clear:k=>localStorage.removeItem(k)}
@@ -541,6 +546,7 @@ function render(p){
     case'os':el.innerHTML=osHTML();bindOS();break
     case'relatorios':el.innerHTML=relHTML();bindRel();break
     case'receitas':el.innerHTML=receitasHTML();bindReceitas();break
+    case'producao':el.innerHTML=producaoHTML();break
     case'empresa':el.innerHTML=empresaHTML();break
   }
 }
@@ -2799,28 +2805,111 @@ function confirmarProducao(id){
   const r=DB.get(S.RECEITAS).find(x=>x.id===id);if(!r)return
   const lotes=Math.max(1,parseInt((document.getElementById('prodLotes')||{}).value)||1)
   const prods=DB.get(S.PRODUTOS)
-  let descontados=0
+  // calcula custo total antes de descontar
+  let custoTotal=0,descontados=0
+  const ingUsados=[]
   ;(r.ingredientes||[]).forEach(ing=>{
     const qtdTotal=(parseFloat(ing.qtd)||0)*lotes
     if(qtdTotal<=0)return
     const i=ing.pId&&ing.pId!=='_custom'
       ?prods.findIndex(p=>p.id===ing.pId)
       :prods.findIndex(p=>p.tipo==='ingrediente'&&p.nome.toLowerCase().trim()===(ing.nome||'').toLowerCase().trim())
-    if(i>=0){const qtdConv=converterUnidade(qtdTotal,ing.und,prods[i].un);prods[i].estoque=Math.max(0,prods[i].estoque-(qtdConv!=null?qtdConv:qtdTotal));descontados++}
+    if(i>=0){
+      const qtdConv=converterUnidade(qtdTotal,ing.und,prods[i].un)
+      const qtdDesc=qtdConv!=null?qtdConv:qtdTotal
+      prods[i].estoque=Math.max(0,prods[i].estoque-qtdDesc)
+      if(prods[i].custo>0)custoTotal+=qtdDesc*prods[i].custo
+      ingUsados.push({nome:ing.nome,qtd:qtdTotal,und:ing.und})
+      descontados++
+    } else {
+      ingUsados.push({nome:ing.nome,qtd:qtdTotal,und:ing.und})
+    }
   })
-  let msgProd=''
+  let produzido=null,msgProd=''
   if(r.prodId){
     const pi=prods.findIndex(p=>p.id===r.prodId)
     if(pi>=0){
       const rendNum=parseFloat((r.rendimento||'').match(/[\d,.]+/)?.[0].replace(',','.'))||1
       const qtdProd=rendNum*lotes
       prods[pi].estoque=(prods[pi].estoque||0)+qtdProd
+      produzido={nome:prods[pi].nome,qtd:qtdProd,un:prods[pi].un}
       msgProd=` · +${qtdProd%1===0?qtdProd:qtdProd.toFixed(2)} ${prods[pi].un} de "${prods[pi].nome}"`
     }
   }
   DB.set(S.PRODUTOS,prods)
+  // salva registro de produção
+  const rec={id:genId(),data:today(),recId:id,recNome:r.nome,lotes,ingredientes:ingUsados,custo:custoTotal,produzido}
+  const hist=DB.get(S.PRODUCOES);hist.push(rec);DB.set(S.PRODUCOES,hist)
   closeModal()
   toast(`${lotes} lote${lotes>1?'s':''} produzido${lotes>1?'s':''}! ${descontados} ingrediente${descontados!==1?'s':''} descontado${descontados!==1?'s':''}${msgProd}.`,'ok')
+  navigate('producao')
+}
+
+// ===== PRODUÇÃO =====
+function producaoHTML(){
+  const hist=DB.get(S.PRODUCOES).slice().reverse()
+  const total=hist.reduce((a,x)=>a+(x.custo||0),0)
+  const hoje=hist.filter(x=>x.data===today()).length
+  return`
+  <div class="ph">
+    <div><h2>Produção</h2><p>Histórico de receitas produzidas</p></div>
+    <div class="ph-actions">
+      <button class="btn btn-p" onclick="navigate('receitas')">+ Nova Produção</button>
+    </div>
+  </div>
+  ${hist.length?`
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
+    <div style="background:var(--white);border-radius:10px;padding:14px 16px;border:1.5px solid var(--cream2)">
+      <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Total produzido</div>
+      <div style="font-size:22px;font-weight:800;color:var(--choc)">${hist.length}</div>
+      <div style="font-size:11px;color:var(--txt3)">produções</div>
+    </div>
+    <div style="background:var(--white);border-radius:10px;padding:14px 16px;border:1.5px solid var(--cream2)">
+      <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Hoje</div>
+      <div style="font-size:22px;font-weight:800;color:var(--cara)">${hoje}</div>
+      <div style="font-size:11px;color:var(--txt3)">produção${hoje!==1?'s':''}</div>
+    </div>
+    <div style="background:var(--white);border-radius:10px;padding:14px 16px;border:1.5px solid var(--cream2)">
+      <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Custo total</div>
+      <div style="font-size:22px;font-weight:800;color:var(--choc)">${fmt(total)}</div>
+      <div style="font-size:11px;color:var(--txt3)">em ingredientes</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    ${hist.map(p=>{
+      const d=p.data?new Date(p.data+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'
+      const ingPreview=(p.ingredientes||[]).slice(0,4).map(i=>`<span style="display:inline-block;background:var(--cream);border:1px solid var(--cream2);border-radius:4px;padding:1px 7px;font-size:11px;color:var(--txt2);margin:2px 2px 0 0">${i.qtd%1===0?i.qtd:parseFloat(i.qtd.toFixed(1))} ${i.und} ${i.nome}</span>`).join('')
+      const maisIng=(p.ingredientes||[]).length>4?`<span style="font-size:11px;color:var(--txt3)">+${(p.ingredientes||[]).length-4} mais</span>`:''
+      return`<div style="background:var(--white);border:1.5px solid var(--cream2);border-radius:10px;padding:14px 16px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--choc)">${p.recNome}</div>
+            <div style="font-size:12px;color:var(--txt3);margin-top:2px">${d} · ${p.lotes} lote${p.lotes!==1?'s':''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+            ${p.custo>0?`<div style="text-align:right"><div style="font-size:11px;color:var(--txt3)">Custo</div><div style="font-size:16px;font-weight:800;color:var(--cara)">${fmt(p.custo)}</div></div>`:''}
+            ${p.produzido?`<div style="background:#EFF9F0;border:1.5px solid var(--ok);border-radius:7px;padding:5px 10px;text-align:center">
+              <div style="font-size:10px;color:var(--ok);font-weight:700">+ ESTOQUE</div>
+              <div style="font-size:12px;font-weight:700;color:var(--ok)">${p.produzido.qtd%1===0?p.produzido.qtd:p.produzido.qtd.toFixed(2)} ${p.produzido.un}</div>
+              <div style="font-size:10px;color:var(--txt3)">${p.produzido.nome}</div>
+            </div>`:''}
+            <button class="btn-ic btn-d" onclick="excluirProducao('${p.id}')" title="Remover do histórico"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--cream2);padding-top:8px">
+          <div style="font-size:11px;color:var(--txt3);font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px">Ingredientes usados</div>
+          <div>${ingPreview}${maisIng}</div>
+        </div>
+      </div>`
+    }).join('')}
+  </div>`:`<div class="empty"><h3>Nenhuma produção ainda</h3><p>Vá em <strong>Receitas</strong> e clique em <strong>⚙ Produzir</strong> para iniciar</p><button class="btn btn-p" style="margin-top:14px" onclick="navigate('receitas')">Ir para Receitas</button></div>`}
+  `
+}
+function excluirProducao(id){
+  confirmarModal('Remover este registro do histórico?',()=>{
+    DB.set(S.PRODUCOES,DB.get(S.PRODUCOES).filter(x=>x.id!==id))
+    toast('Registro removido','ok');render('producao')
+  })
 }
 
 function _ytId(url){
