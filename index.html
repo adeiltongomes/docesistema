@@ -1147,7 +1147,15 @@ function renderEstTable(){
             ${low?'<span class="bdg bdg-r">Baixo</span>':'<span class="bdg bdg-g">OK</span>'}
           </div>
         </td>
-        ${isP?`<td><strong>${fmt(p.preco)}</strong></td>`:''}
+        ${isP?`<td>
+          <div style="display:flex;align-items:center;gap:4px">
+            <input type="number" value="${p.preco||''}" min="0" step="0.01" placeholder="0,00"
+              style="width:80px;padding:4px 7px;border:1.5px solid var(--cream2);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--txt);background:var(--ivory)"
+              onchange="salvarPrecoInline('${p.id}',this.value,this)"
+              onkeydown="if(event.key==='Enter')this.blur()">
+            <span style="font-size:11px;color:var(--txt3)">/${p.un}</span>
+          </div>
+        </td>`:''}
         <td>
           <div style="display:flex;align-items:center;gap:4px">
             <input type="number" value="${p.custo||''}" min="0" step="0.0001" placeholder="0,00"
@@ -1173,7 +1181,14 @@ function salvarCustoInline(id,val,inp){
   const prods=DB.get(S.PRODUTOS);const i=prods.findIndex(p=>p.id===id);if(i<0)return
   prods[i].custo=custo;DB.set(S.PRODUTOS,prods)
   if(inp){inp.style.border=custo>0?'1.5px solid var(--ok)':'1.5px solid var(--warn)';inp.style.background=custo>0?'var(--ivory)':'#FFF8F0';setTimeout(()=>{inp.style.border=custo>0?'1.5px solid var(--cream2)':'1.5px solid var(--warn)'},1200)}
-  toast(`Custo de "${prods[i].nome}" atualizado para R$${custo.toFixed(4)}/${prods[i].un}`,'ok')
+  toast(`Custo de "${prods[i].nome}" atualizado!`,'ok')
+}
+function salvarPrecoInline(id,val,inp){
+  const preco=parseFloat(val)||0
+  const prods=DB.get(S.PRODUTOS);const i=prods.findIndex(p=>p.id===id);if(i<0)return
+  prods[i].preco=preco;DB.set(S.PRODUTOS,prods)
+  if(inp){inp.style.border='1.5px solid var(--ok)';setTimeout(()=>{inp.style.border='1.5px solid var(--cream2)'},1200)}
+  toast(`Preço de "${prods[i].nome}" atualizado!`,'ok')
 }
 function novoProd(){editId=null;openModal('Novo Item',prodForm({tipo:estoqueTab}),`<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarProd()">Salvar</button>`)}
 function editProd(id){const p=DB.get(S.PRODUTOS).find(x=>x.id===id);if(!p)return;editId=id;openModal('Editar Item',prodForm(p),`<button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="salvarProd()">Salvar</button>`)}
