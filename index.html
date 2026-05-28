@@ -2455,36 +2455,53 @@ function renderReceitasGrid(){
   const el=document.getElementById('recGrid');if(!el)return
   if(!rows.length){el.innerHTML=`<div class="empty"><svg width="40" height="40" fill="none" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-7 17.29V21a1 1 0 001 1h12a1 1 0 001-1v-1.71A10 10 0 0012 2z" stroke="currentColor" stroke-width="1.5"/></svg><h3>Nenhuma receita</h3><p>Cadastre a primeira receita</p></div>`;return}
   const difColor={Fácil:'var(--ok)',Médio:'var(--warn)',Difícil:'var(--bad)'}
+  const difBg={Fácil:'#EFF9F0',Médio:'#FFF8EE',Difícil:'#FFF0F0'}
+  const difBorder={Fácil:'#A5D6A7',Médio:'#F0C878',Difícil:'#FFAAAA'}
   const prodsHoje=DB.get(S.PRODUCOES).filter(p=>p.data===today())
-  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;padding:4px 0">
-    ${rows.map(r=>{const jaProduziu=prodsHoje.some(p=>p.recId===r.id);return`<div class="rec-card">
-      ${r.foto?`<div class="rec-foto" style="background-image:url('${r.foto.data}')"></div>`:`<div class="rec-foto rec-foto-empty"><svg width="32" height="32" fill="none" viewBox="0 0 24 24" style="opacity:.25"><path d="M12 2a10 10 0 00-7 17.29V21a1 1 0 001 1h12a1 1 0 001-1v-1.71A10 10 0 0012 2z" stroke="currentColor" stroke-width="1.5"/><path d="M12 11V7M9 14c0-1.66 1.34-3 3-3s3 1.34 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>`}
-      <div class="rec-body">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px">
-          <div>
-            <div class="rec-nome">${r.nome}</div>
-            <div class="rec-cat">${r.cat||'—'}</div>
+  el.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
+    ${rows.map(r=>{
+      const jaProduziu=prodsHoje.some(p=>p.recId===r.id)
+      const dc=difColor[r.dif]||'var(--cara)'
+      const ingCount=r.ingredientes?.length||0
+      const ingPreview=(r.ingredientes||[]).slice(0,4).map(i=>`<span style="display:inline-block;background:var(--white);border:1px solid var(--cream2);border-radius:20px;padding:2px 9px;font-size:10px;color:var(--txt2);white-space:nowrap"><span style="font-weight:700;color:var(--cara)">${i.qtd}${i.und}</span> ${i.nome}</span>`).join('')
+      const maisIng=ingCount>4?`<span style="font-size:11px;color:var(--txt3)">+${ingCount-4} mais</span>`:''
+      return`<div style="background:var(--white);border:1px solid var(--cream2);border-radius:12px;overflow:hidden;display:flex;box-shadow:0 1px 6px rgba(74,44,30,.06)">
+        <div style="width:4px;background:linear-gradient(180deg,var(--cara),var(--choc));flex-shrink:0"></div>
+        <div style="width:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:12px 8px;border-right:1px solid var(--cream2)">
+          ${r.foto
+            ?`<img src="${r.foto.data}" style="width:48px;height:48px;border-radius:10px;object-fit:cover">`
+            :`<div style="width:48px;height:48px;border-radius:10px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:22px">🎂</div>`}
+        </div>
+        <div style="flex:1;padding:12px 14px;min-width:0">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15px;font-weight:900;color:var(--choc);margin-bottom:6px;line-height:1.2">${r.nome}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:${ingCount?'8':'0'}px">
+                ${r.cat?`<span style="background:var(--cream);border:1px solid var(--cream2);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--txt2);font-weight:600">${r.cat}</span>`:''}
+                ${r.dif?`<span style="background:${difBg[r.dif]||'var(--cream)'};border:1px solid ${difBorder[r.dif]||'var(--cream2)'};border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;color:${dc}">${r.dif}</span>`:''}
+                ${r.rendimento?`<span style="font-size:11px;color:var(--txt3)">🍰 ${r.rendimento}</span>`:''}
+                ${r.tpreparo?`<span style="font-size:11px;color:var(--txt3)">⏱ ${r.tpreparo}</span>`:''}
+                ${r.tcozimento?`<span style="font-size:11px;color:var(--txt3)">🔥 ${r.tcozimento}</span>`:''}
+                ${r.video?`<span style="font-size:11px;color:#5A8FD0;font-weight:600">▶ Vídeo</span>`:''}
+                ${jaProduziu?`<span style="background:#EFF9F0;border:1px solid #A5D6A7;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;color:var(--ok)">✓ Produzido hoje</span>`:''}
+              </div>
+              ${ingCount?`<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">${ingPreview}${maisIng}</div>`:''}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;align-items:flex-end">
+              <button class="btn btn-s btn-sm" onclick="verReceita('${r.id}')">Ver Receita</button>
+              ${jaProduziu
+                ?`<button class="btn btn-s btn-sm" disabled style="background:#A0C878;color:#fff;border-color:#8DB860;cursor:default;opacity:.9;white-space:nowrap">✓ Produzido hoje</button>`
+                :`<button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok);white-space:nowrap" onclick="this.disabled=true;this.textContent='⏳ Aguarde...';produzirReceita('${r.id}');setTimeout(()=>{this.disabled=false;this.textContent='▶ Iniciar Produção'},400)">▶ Iniciar Produção</button>`}
+              <div style="display:flex;gap:4px">
+                <button class="btn btn-s btn-sm" onclick="imprimirReceita('${r.id}')" title="Imprimir">🖨</button>
+                <button class="btn-ic" onclick="editReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button class="btn-ic btn-d" onclick="excluirReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              </div>
+            </div>
           </div>
-          ${r.dif?`<span style="font-size:10px;font-weight:700;color:${difColor[r.dif]||'var(--txt3)'};flex-shrink:0;padding-top:2px">${r.dif}</span>`:''}
         </div>
-        <div class="rec-meta">
-          ${r.rendimento?`<span title="Rendimento">🍰 ${r.rendimento}</span>`:''}
-          ${r.tpreparo?`<span title="Tempo de preparo">⏱ ${r.tpreparo}</span>`:''}
-          ${r.tcozimento?`<span title="Tempo forno/cozimento">🔥 ${r.tcozimento}</span>`:''}
-          ${r.video?`<span title="Tem vídeo">▶ Vídeo</span>`:''}
-        </div>
-        ${r.ingredientes&&r.ingredientes.length?`<div class="rec-ing-preview">${r.ingredientes.slice(0,3).map(i=>`<span>${i.qtd} ${i.und} ${i.nome}</span>`).join('')}${r.ingredientes.length>3?`<span style="color:var(--txt3)">+${r.ingredientes.length-3} ingredientes</span>`:''}</div>`:''}
-        <div class="rec-actions">
-          <button class="btn btn-s btn-sm" onclick="verReceita('${r.id}')">Ver Receita</button>
-          ${jaProduziu
-            ?`<button class="btn btn-s btn-sm" disabled style="background:#A0C878;color:#fff;border-color:#8DB860;cursor:default;opacity:1">✓ Produzido hoje</button>`
-            :`<button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok)" onclick="this.disabled=true;this.textContent='⏳ Aguarde...';produzirReceita('${r.id}');setTimeout(()=>{this.disabled=false;this.textContent='▶ Iniciar Produção'},400)">▶ Iniciar Produção</button>`}
-          <button class="btn btn-s btn-sm" onclick="imprimirReceita('${r.id}')" title="Imprimir esta receita">🖨</button>
-          <button class="btn-ic" onclick="editReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <button class="btn-ic btn-d" onclick="excluirReceita('${r.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        </div>
-      </div>
-    </div>`}).join('')}
+      </div>`
+    }).join('')}
   </div>`
 }
 
