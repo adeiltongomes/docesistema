@@ -344,7 +344,7 @@ tbody td:first-child{font-weight:600;color:var(--txt2);white-space:nowrap}
 
 <script>
 // ===== CONSTANTS =====
-const S={CLIENTES:'ds_cli',PRODUTOS:'ds_prod',VENDAS:'ds_vnd',ORCAMENTOS:'ds_orc',COMPRAS:'ds_cmp',TRANS:'ds_trn',OS:'ds_os',EMPRESA:'ds_emp',RECEITAS:'ds_rec',PRODUCOES:'ds_producoes'}
+const S={CLIENTES:'ds_cli',PRODUTOS:'ds_prod',VENDAS:'ds_vnd',ORCAMENTOS:'ds_orc',COMPRAS:'ds_cmp',TRANS:'ds_trn',OS:'ds_os',EMPRESA:'ds_emp',RECEITAS:'ds_rec',PRODUCOES:'ds_producoes',RECSTATUS:'ds_rec_status'}
 const PTITLES={dashboard:'Dashboard',vendas:'Vendas',orcamentos:'Orçamentos',clientes:'Clientes',estoque:'Estoque',compras:'Compras',financeiro:'Financeiro',os:'Ordens de Serviço',relatorios:'Relatórios',empresa:'Minha Empresa',receitas:'Receitas',producao:'Produção'}
 
 // ===== DB =====
@@ -3007,6 +3007,23 @@ function confirmarProducao(id){
 }
 
 // ===== PRODUÇÃO =====
+function getStatusRec(recId){
+  const hoje=today()
+  return(DB.get(S.RECSTATUS)||[]).find(x=>x.recId===recId&&x.data===hoje)||null
+}
+function alterarStatusReceita(recId,novoStatus){
+  if(novoStatus==='produzido'){
+    // limpa eventual marcação anterior e abre modal de confirmação
+    const all=(DB.get(S.RECSTATUS)||[]).filter(x=>!(x.recId===recId&&x.data===today()))
+    DB.set(S.RECSTATUS,all)
+    produzirReceita(recId)
+    return
+  }
+  const all=(DB.get(S.RECSTATUS)||[]).filter(x=>!(x.recId===recId&&x.data===today()))
+  if(novoStatus!=='aberto')all.push({recId,data:today(),status:novoStatus})
+  DB.set(S.RECSTATUS,all)
+  render('producao')
+}
 function alterarStatusProdOrc(id,novoStatus){
   const orcs=DB.get(S.ORCAMENTOS);const i=orcs.findIndex(o=>o.id===id);if(i<0)return
   orcs[i].statusProd=novoStatus
@@ -3077,38 +3094,47 @@ function producaoHTML(){
   </div>`:''
   // seção de receitas disponíveis
   const todasReceitas=DB.get(S.RECEITAS).sort((a,b)=>a.nome.localeCompare(b.nome))
-  const prodsHoje=DB.get(S.PRODUCOES).filter(p=>p.data===today())
+  const statusRecHoje=(DB.get(S.RECSTATUS)||[]).filter(x=>x.data===today())
+  const prodsHojeIds=new Set(DB.get(S.PRODUCOES).filter(p=>p.data===today()).map(p=>p.recId))
   const difColor={Fácil:'var(--ok)',Médio:'var(--warn)',Difícil:'var(--bad)'}
   const difBg={Fácil:'#EFF9F0',Médio:'#FFF8EE',Difícil:'#FFF0F0'}
   const difBorder={Fácil:'#A5D6A7',Médio:'#F0C878',Difícil:'#FFAAAA'}
+  const spCfgR={aberto:{l:'🔵 Aberto',c:'#5A8FD0',bg:'#EEF3FF',b:'#B8C8F0'},produzindo:{l:'🟡 Produzindo',c:'#B07030',bg:'#FFF3DC',b:'#F0C878'},produzido:{l:'🟢 Produzido',c:'#2E7D32',bg:'#EFF9F0',b:'#A5D6A7'},cancelado:{l:'🔴 Cancelado',c:'#B71C1C',bg:'#FFF0F0',b:'#FFAAAA'}}
   const receitasCards=todasReceitas.map(r=>{
-    const jaProduziu=prodsHoje.some(p=>p.recId===r.id)
-    return`<div style="background:var(--white);border:1px solid var(--cream2);border-radius:12px;overflow:hidden;display:flex;box-shadow:0 1px 5px rgba(74,44,30,.06)">
-      <div style="width:4px;background:linear-gradient(180deg,var(--cara),var(--choc));flex-shrink:0"></div>
-      <div style="width:56px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:10px 6px;border-right:1px solid var(--cream2)">
+    const stRec=statusRecHoje.find(x=>x.recId===r.id)
+    const jaConfirmado=prodsHojeIds.has(r.id)
+    const sp=jaConfirmado?'produzido':(stRec?.status||'aberto')
+    const sc=spCfgR[sp]||spCfgR.aberto
+    const isDimmed=sp==='produzido'||sp==='cancelado'
+    return`<div style="background:${isDimmed?'#FAFAFA':sc.bg};border:1.5px solid ${sc.b};border-left:4px solid ${sc.c};border-radius:12px;overflow:hidden;display:flex;box-shadow:0 1px 5px rgba(74,44,30,.05);opacity:${isDimmed?'.75':'1'}">
+      <div style="width:56px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:10px 6px;border-right:1px solid ${sc.b}">
         ${r.foto?`<img src="${r.foto.data}" style="width:40px;height:40px;border-radius:8px;object-fit:cover">`
                 :`<div style="width:40px;height:40px;border-radius:8px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:20px">🎂</div>`}
       </div>
       <div style="flex:1;padding:10px 14px;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:900;color:var(--choc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nome}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;align-items:center">
+          <div style="font-size:14px;font-weight:900;color:var(--choc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px">${r.nome}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
             ${r.cat?`<span style="background:var(--cream);border:1px solid var(--cream2);border-radius:20px;padding:1px 8px;font-size:10px;color:var(--txt2);font-weight:600">${r.cat}</span>`:''}
             ${r.dif?`<span style="background:${difBg[r.dif]||'var(--cream)'};border:1px solid ${difBorder[r.dif]||'var(--cream2)'};border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700;color:${difColor[r.dif]||'var(--cara)'}">${r.dif}</span>`:''}
             ${r.rendimento?`<span style="font-size:10px;color:var(--txt3)">🍰 ${r.rendimento}</span>`:''}
             ${r.ingredientes?.length?`<span style="font-size:10px;color:var(--txt3)">${r.ingredientes.length} ingredientes</span>`:''}
-            ${jaProduziu?`<span style="background:#EFF9F0;border:1px solid #A5D6A7;border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700;color:var(--ok)">✓ Produzido hoje</span>`:''}
           </div>
         </div>
         <div style="flex-shrink:0">
-          ${jaProduziu
-            ?`<button class="btn btn-s btn-sm" disabled style="background:#A0C878;color:#fff;border-color:#8DB860;cursor:default;white-space:nowrap">✓ Produzido hoje</button>`
-            :`<button class="btn btn-s btn-sm" style="background:var(--ok);color:#fff;border-color:var(--ok);white-space:nowrap" onclick="this.disabled=true;this.textContent='⏳ Aguarde...';produzirReceita('${r.id}');setTimeout(()=>{this.disabled=false;this.textContent='▶ Iniciar Produção'},400)">▶ Iniciar Produção</button>`}
+          <select onchange="alterarStatusReceita('${r.id}',this.value)"
+            style="padding:6px 10px;border:1.5px solid ${sc.b};border-radius:8px;font-size:12px;font-weight:700;color:${sc.c};background:${sc.bg};font-family:inherit;cursor:pointer;outline:none;min-width:130px"
+            ${jaConfirmado?'disabled':''}>
+            <option value="aberto"     ${sp==='aberto'    ?'selected':''}>🔵 Aberto</option>
+            <option value="produzindo" ${sp==='produzindo'?'selected':''}>🟡 Produzindo</option>
+            <option value="produzido"  ${sp==='produzido' ?'selected':''}>🟢 Produzido</option>
+            <option value="cancelado"  ${sp==='cancelado' ?'selected':''}>🔴 Cancelado</option>
+          </select>
         </div>
       </div>
     </div>`
   }).join('')
-  const receitasHTML=todasReceitas.length?`
+  const receitasSecHTML=todasReceitas.length?`
   <div style="margin-bottom:24px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <span style="font-size:14px;font-weight:800;color:var(--choc)">🎂 Receitas Disponíveis</span>
@@ -3124,7 +3150,7 @@ function producaoHTML(){
       <button class="btn btn-s btn-sm" onclick="imprimirProducao()">🖨 Imprimir</button>
     </div>
   </div>
-  ${receitasHTML}
+  ${receitasSecHTML}
   ${filaHTML}
   ${hist.length?`
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px">
