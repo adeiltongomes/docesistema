@@ -1145,7 +1145,10 @@ function estHTML(){
   const is=prods.filter(x=>x.tipo==='ingrediente')
   return`
   <div class="ph"><div><h2>Estoque</h2><p>Produtos e matérias-primas</p></div>
-    <button class="btn btn-p" onclick="novoProd()">+ Novo Item</button></div>
+    <div class="ph-actions">
+      <button class="btn btn-ok btn-sm" onclick="recalcularCustos()" title="Recalcula os custos de todos os ingredientes com base nas compras registradas">🔄 Recalcular Custos</button>
+      <button class="btn btn-p" onclick="novoProd()">+ Novo Item</button>
+    </div></div>
   <div class="tabs" id="estTabs">
     <div class="tab active" onclick="setEstTab('produto',this)">Produtos Finais (${ps.length})</div>
     <div class="tab" onclick="setEstTab('ingrediente',this)">Matérias-Primas (${is.length})</div>
@@ -1284,6 +1287,56 @@ function confirmarAjuste(id){
 function excluirProd(id){
   if(!confirm('Excluir este item?'))return
   DB.set(S.PRODUTOS,DB.get(S.PRODUTOS).filter(x=>x.id!==id));toast('Item removido','ok');render('estoque')
+}
+
+function recalcularCustos(){
+  const prods=DB.get(S.PRODUTOS)
+  const compras=DB.get(S.COMPRAS)
+  // recalcula custo de cada ingrediente pela compra mais recente (data desc = última prevalece)
+  const fixes={}
+  ;[...compras].sort((a,b)=>a.data.localeCompare(b.data)).forEach(c=>{
+    ;(c.itens||[]).forEach(it=>{
+      if(!it.pId||it.pId==='_free')return
+      const prod=prods.find(p=>p.id===it.pId);if(!prod)return
+      const valor=it.valor!=null?parseFloat(it.valor):(parseFloat(it.pu)||0)*(parseFloat(it.qtd)||0)
+      const qtd=parseFloat(it.qtd)||0,und=it.und||''
+      if(!qtd||!valor)return
+      let qtdBase=qtd
+      if(und&&und!==prod.un){const qb=converterUnidade(qtd,und,prod.un);if(qb!=null&&qb>0)qtdBase=qb;else return}
+      if(qtdBase>0)fixes[it.pId]={custo:valor/qtdBase,data:c.data,forn:c.forn}
+    })
+  })
+  const f=v=>v>=1?v.toFixed(2):v>=0.001?v.toFixed(4):v.toFixed(6)
+  let corrigidos=0,suspeitos=[]
+  const linhas=[]
+  prods.forEach(p=>{
+    if(p.tipo!=='ingrediente')return
+    const fix=fixes[p.id]
+    if(fix&&Math.abs(fix.custo-(p.custo||0))>0.000001){
+      linhas.push({nome:p.nome,de:f(p.custo||0)+'/'+p.un,para:f(fix.custo)+'/'+p.un,forn:fix.forn,ok:true})
+      p.custo=fix.custo;corrigidos++
+    } else if(!fix&&(p.custo||0)>1&&(p.un==='g'||p.un==='ml')){
+      suspeitos.push(p.nome)
+    }
+  })
+  if(corrigidos>0)DB.set(S.PRODUTOS,prods)
+  // exibir resultado em modal
+  const linhasHtml=linhas.map(l=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--cream2)">
+      <span style="flex:1;font-size:13px;font-weight:600">${l.nome}</span>
+      <span style="font-size:11px;color:var(--bad);text-decoration:line-through">${l.de}</span>
+      <span style="font-size:11px;color:var(--txt3)">→</span>
+      <span style="font-size:12px;font-weight:700;color:var(--ok)">${l.para}</span>
+    </div>`).join('')
+  const suspHtml=suspeitos.length?`<div style="margin-top:14px;padding:10px 12px;background:#FFF8F0;border-radius:8px;border:1.5px solid var(--warn)">
+    <div style="font-size:11px;font-weight:700;color:var(--warn);margin-bottom:6px">⚠ Custo suspeito — sem compra registrada (corrija manualmente no Estoque):</div>
+    ${suspeitos.map(n=>`<div style="font-size:12px;color:var(--txt2);padding:2px 0">• ${n}</div>`).join('')}
+  </div>`:''
+  openModal('Resultado — Recalcular Custos',`
+    ${corrigidos===0&&!suspeitos.length?`<div style="text-align:center;padding:20px;color:var(--ok);font-weight:700">✅ Todos os custos já estão corretos!</div>`:''}
+    ${linhas.length?`<div style="margin-bottom:6px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">${corrigidos} custo(s) recalculado(s)</div>${linhasHtml}`:''}
+    ${suspHtml}`,
+    `<button class="btn btn-p" onclick="closeModal();render('estoque')">OK</button>`)
 }
 
 // ===== COMPRAS =====
