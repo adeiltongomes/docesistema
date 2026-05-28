@@ -2116,7 +2116,7 @@ function renderIngredientes(){
     const qtdNum=parseFloat(ing.qtd)||0
     const qtdConv=prod?converterUnidade(qtdNum,ing.und,prod.un):null
     const custoInit=prod&&prod.custo>0&&qtdConv!=null?fmt(qtdConv*prod.custo):'—'
-    const taxaBase=prod&&prod.custo>0?`R$${prod.custo%1===0?prod.custo.toFixed(2):prod.custo.toFixed(4)}/${prod.un}`:null
+    const taxaBase=prod&&prod.custo>0?`R$${prod.custo.toFixed(2)}/${prod.un}`:null
     const semCusto=prod&&!prod.custo
     return`
     <div style="background:var(--ivory);border:1.5px solid var(--cream2);border-radius:8px;padding:8px 10px;margin-bottom:6px">
